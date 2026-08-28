@@ -3,7 +3,7 @@ import urllib.parse
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from . import autostart
+from . import autostart, settings
 from .config import WEB_DIR
 
 CONTENT_TYPES = {
@@ -58,6 +58,8 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_json(self.server.tracker.heatmap(day))
         elif path == "/api/trend":
             self._send_json(self.server.tracker.trend())
+        elif path == "/api/settings":
+            self._send_json(settings.get_all())
         elif path == "/api/status":
             self._send_json({
                 "paused": self.server.tracker.paused,
@@ -91,6 +93,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(exc)})
             else:
                 self._send_json({"ok": True, "enabled": autostart.is_enabled()})
+        elif self.path == "/api/settings":
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            try:
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError:
+                body = {}
+            close_action = body.get("close_action")
+            if close_action in ("ask", "minimize", "exit"):
+                settings.set("close_action", close_action)
+            self._send_json(settings.get_all())
         else:
             self._send_error(404, "Not Found")
 

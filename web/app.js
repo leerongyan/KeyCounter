@@ -102,6 +102,7 @@ const liveIndicator = document.getElementById("live-indicator");
 const pauseButton = document.getElementById("pause-button");
 const autostartButton = document.getElementById("autostart-button");
 const unitSelect = document.getElementById("distance-unit");
+const closeActionSelect = document.getElementById("close-action");
 const keyboardEl = document.getElementById("keyboard");
 const keyboardHolder = document.getElementById("keyboard-holder");
 const keyboardStage = document.querySelector(".keyboard-stage");
@@ -297,16 +298,37 @@ function renderTrend(payload) {
     .join("");
 }
 
+function renderSettings(settings) {
+  const value = settings.close_action || "ask";
+  if (closeActionSelect.value !== value) closeActionSelect.value = value;
+}
+
+closeActionSelect.addEventListener("change", async () => {
+  try {
+    const result = await fetchJSON("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ close_action: closeActionSelect.value }),
+    });
+    renderSettings(result);
+  } catch (error) {
+    statusText.textContent = "关闭窗口设置保存失败";
+  }
+});
+
+
 async function refresh() {
   try {
-    const [summary, heatmap, trend] = await Promise.all([
+    const [summary, heatmap, trend, settings] = await Promise.all([
       fetchJSON("/api/summary"),
       fetchJSON("/api/heatmap"),
       fetchJSON("/api/trend"),
+      fetchJSON("/api/settings"),
     ]);
     renderSummary(summary);
     renderHeatmap(heatmap);
     renderTrend(trend);
+    renderSettings(settings);
   } catch (error) {
     statusText.textContent = "无法连接统计服务";
     liveIndicator.classList.add("paused");

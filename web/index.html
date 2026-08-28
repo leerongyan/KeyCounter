@@ -28,6 +28,13 @@
           <option value="px">像素</option>
         </select>
       </label>
+      <label class="unit-field">关闭窗口
+        <select id="close-action" class="settings-select">
+          <option value="ask">每次询问</option>
+          <option value="minimize">最小化到托盘</option>
+          <option value="exit">直接退出</option>
+        </select>
+      </label>
       <a class="action-button" href="/api/export?format=csv">导出数据</a>
       <a class="action-button" href="/api/export/heatmap.png">热力图 PNG</a>
       <button id="autostart-button" type="button">开启开机自启</button>

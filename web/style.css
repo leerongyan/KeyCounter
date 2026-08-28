@@ -79,7 +79,8 @@ select {
   white-space: nowrap;
 }
 
-#distance-unit {
+#distance-unit,
+.settings-select {
   height: 32px;
   padding: 0 8px;
   border: 1px solid #48665b;
