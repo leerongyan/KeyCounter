@@ -2,9 +2,14 @@ import math
 import time
 from datetime import date, datetime, timedelta
 
+import csv
+import io
+
 from pynput import keyboard, mouse
 
+from . import autostart
 from .db import Database, now_text
+from .heatmap import render_heatmap
 from .keys import normalize_key
 
 
@@ -89,6 +94,7 @@ class Tracker:
             "distance_px": round(distance_px, 1),
             "distance_m": round(distance_m, 3),
             "paused": self.paused,
+            "autostart_enabled": autostart.is_enabled(),
             "started_at": self.started_at.strftime("%Y-%m-%d %H:%M:%S"),
             "last_updated": now_text(),
             "top_keys": self.db.key_counts(start, end, limit=10),
@@ -104,6 +110,38 @@ class Tracker:
             day = today
         start, end = self.db.day_range(day)
         return {"date": day, "keys": self.db.key_counts(start, end)}
+
+    def export_csv(self):
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(["KeyCounter 数据导出"])
+        writer.writerow(["导出时间", now_text()])
+        writer.writerow([])
+        writer.writerow(["每日统计"])
+        writer.writerow(["日期", "按键总数", "点击总数", "滚轮总数", "移动距离像素"])
+        for row in self.db.daily_rows():
+            writer.writerow([
+                row["date"], row["keys"], row["clicks"], row["scrolls"],
+                row["distance_px"],
+            ])
+        writer.writerow([])
+        writer.writerow(["按键统计"])
+        writer.writerow(["按键", "次数"])
+        for row in self.db.key_counts_all():
+            writer.writerow([row["key_name"], row["count"]])
+        return buffer.getvalue().encode("utf-8-sig")
+
+    def heatmap_png(self, day=None):
+        today = date.today().isoformat()
+        day = day or today
+        try:
+            date.fromisoformat(day)
+        except ValueError:
+            day = today
+        start, end = self.db.day_range(day)
+        counts = {row["key_name"]: row["count"] for row in self.db.key_counts(start, end)}
+        total = sum(counts.values())
+        return render_heatmap(counts, day, total)
 
     def trend(self):
         today = date.today().isoformat()

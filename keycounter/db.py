@@ -186,6 +186,66 @@ class Database:
             ).fetchall()
             return [dict(row) for row in rows]
 
+    def daily_rows(self):
+        with self._lock:
+            key_rows = self.conn.execute(
+                """
+                SELECT substr(pressed_at, 1, 10) AS day, COUNT(*) AS count
+                FROM key_events
+                GROUP BY substr(pressed_at, 1, 10)
+                ORDER BY day
+                """
+            ).fetchall()
+            mouse_rows = self.conn.execute(
+                """
+                SELECT substr(pressed_at, 1, 10) AS day, event_type,
+                       COUNT(*) AS count
+                FROM mouse_events
+                GROUP BY substr(pressed_at, 1, 10), event_type
+                ORDER BY day
+                """
+            ).fetchall()
+            distance_rows = self.conn.execute(
+                """
+                SELECT substr(sampled_at, 1, 10) AS day,
+                       COALESCE(SUM(distance_px), 0) AS distance
+                FROM mouse_moves
+                GROUP BY substr(sampled_at, 1, 10)
+                ORDER BY day
+                """
+            ).fetchall()
+
+        stats = {}
+        for row in key_rows:
+            stats.setdefault(row["day"], {})["keys"] = row["count"]
+        for row in mouse_rows:
+            day = row["day"]
+            stats.setdefault(day, {})[row["event_type"]] = row["count"]
+        for row in distance_rows:
+            stats.setdefault(row["day"], {})["distance"] = row["distance"]
+
+        result = []
+        for day in sorted(stats):
+            item = stats[day]
+            result.append({
+                "date": day,
+                "keys": item.get("keys", 0),
+                "clicks": item.get("click", 0),
+                "scrolls": item.get("scroll", 0),
+                "distance_px": item.get("distance", 0),
+            })
+        return result
+
+    def key_counts_all(self):
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT key_name, COUNT(*) AS count FROM key_events
+                GROUP BY key_name ORDER BY count DESC
+                """
+            ).fetchall()
+            return [dict(row) for row in rows]
+
     def close(self):
         with self._lock:
             self.conn.close()

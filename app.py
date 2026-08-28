@@ -6,6 +6,7 @@ from keycounter.config import DEFAULT_PORT
 from keycounter.db import Database
 from keycounter.server import DashboardServer
 from keycounter.tracker import Tracker
+from keycounter.tray import TrayController
 
 
 def main():
@@ -21,6 +22,10 @@ def main():
     server = DashboardServer(("127.0.0.1", args.port), tracker)
     url = f"http://127.0.0.1:{args.port}"
 
+    tray = TrayController(tracker, url, server.shutdown)
+    if tray.start():
+        print("系统托盘图标已启动")
+
     print("=" * 52)
     print("键盘鼠标使用统计工具已启动")
     print(f"仪表盘地址: {url}")
@@ -35,6 +40,7 @@ def main():
     except KeyboardInterrupt:
         print("\n正在停止统计...")
     finally:
+        tray.stop()
         server.shutdown()
         server.server_close()
         tracker.stop()

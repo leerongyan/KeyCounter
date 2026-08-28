@@ -3,3 +3,7 @@ __pycache__/
 .venv/
 data/
 .vscode/
+build/
+dist/
+*.spec
+%SystemDrive%/

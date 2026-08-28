@@ -1,7 +1,13 @@
+import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = Path(sys.executable).resolve().parent
+    WEB_DIR = Path(getattr(sys, "_MEIPASS", PROJECT_ROOT)) / "web"
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    WEB_DIR = PROJECT_ROOT / "web"
+
 DATA_DIR = PROJECT_ROOT / "data"
 DB_PATH = DATA_DIR / "keycounter.db"
-WEB_DIR = PROJECT_ROOT / "web"
 DEFAULT_PORT = 8765

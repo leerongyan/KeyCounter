@@ -3,6 +3,7 @@ import urllib.parse
 from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from . import autostart
 from .config import WEB_DIR
 
 CONTENT_TYPES = {
@@ -37,6 +38,20 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._serve_static(path[len("/static/"):])
         elif path == "/api/summary":
             self._send_json(self.server.tracker.summary())
+        elif path == "/api/export":
+            self._send_download(
+                self.server.tracker.export_csv(),
+                "keycounter_stats.csv",
+                "text/csv; charset=utf-8",
+            )
+        elif path == "/api/export/heatmap.png":
+            query = urllib.parse.parse_qs(parsed.query)
+            day = query.get("date", [date.today().isoformat()])[0]
+            data = self.server.tracker.heatmap_png(day)
+            if data is None:
+                self._send_error(500, "Heatmap image is unavailable")
+                return
+            self._send_download(data, f"keycounter_heatmap_{day}.png", "image/png")
         elif path == "/api/heatmap":
             query = urllib.parse.parse_qs(parsed.query)
             day = query.get("date", [date.today().isoformat()])[0]
@@ -44,7 +59,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path == "/api/trend":
             self._send_json(self.server.tracker.trend())
         elif path == "/api/status":
-            self._send_json({"paused": self.server.tracker.paused})
+            self._send_json({
+                "paused": self.server.tracker.paused,
+                "autostart_enabled": autostart.is_enabled(),
+            })
+        elif self.path == "/api/autostart":
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            try:
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError:
+                body = {}
+            if body.get("enabled"):
+                autostart.enable()
+            else:
+                autostart.disable()
+            self._send_json({"enabled": autostart.is_enabled()})
         else:
             self._send_error(404, "Not Found")
 
@@ -88,6 +117,18 @@ class DashboardHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def _send_download(self, data, filename, content_type):
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header(
+            "Content-Disposition",
+            f'attachment; filename="{filename}"',
+        )
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(data)

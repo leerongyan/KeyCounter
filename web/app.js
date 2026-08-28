@@ -133,6 +133,7 @@ const state = {
 const statusText = document.getElementById("status-text");
 const liveIndicator = document.getElementById("live-indicator");
 const pauseButton = document.getElementById("pause-button");
+const autostartButton = document.getElementById("autostart-button");
 
 function createKeyButton(key) {
   const el = document.createElement("div");
@@ -222,6 +223,11 @@ function renderPause(paused) {
   liveIndicator.textContent = paused ? "已暂停" : "运行中";
 }
 
+function renderAutostart(enabled) {
+  autostartButton.textContent = enabled ? "开机自启已开" : "开启开机自启";
+  autostartButton.classList.toggle("enabled", enabled);
+}
+
 function renderSummary(summary) {
   document.getElementById("stat-keys").textContent = formatNumber(summary.keys);
   document.getElementById("stat-clicks").textContent = formatNumber(summary.clicks);
@@ -263,6 +269,7 @@ function renderSummary(summary) {
   }
 
   renderPause(summary.paused);
+  renderAutostart(summary.autostart_enabled);
   statusText.textContent = summary.paused
     ? "统计已暂停"
     : `统计中 · 更新于 ${new Date().toLocaleTimeString("zh-CN")}`;
@@ -335,6 +342,20 @@ pauseButton.addEventListener("click", async () => {
     renderPause(result.paused);
   } catch (error) {
     statusText.textContent = "暂停操作失败";
+  }
+});
+
+autostartButton.addEventListener("click", async () => {
+  const enabled = autostartButton.classList.contains("enabled");
+  try {
+    const result = await fetchJSON("/api/autostart", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: !enabled }),
+    });
+    renderAutostart(result.enabled);
+  } catch (error) {
+    statusText.textContent = "开机自启设置失败";
   }
 });
 
