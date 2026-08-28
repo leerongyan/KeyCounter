@@ -4,10 +4,10 @@ const KEY_LABELS = {
   meta: "Win",
   alt_gr: "AltGr",
   menu: "Menu",
-  right: "→ 右方向键",
-  left: "← 左方向键",
-  up: "↑ 上方向键",
-  down: "↓ 下方向键",
+  right: "→",
+  left: "←",
+  up: "↑",
+  down: "↓",
   insert: "Ins",
   home: "Home",
   end: "End",
@@ -253,7 +253,7 @@ function renderSummary(summary) {
   document.getElementById("stat-scrolls").textContent = formatNumber(summary.scrolls);
   const mouse = {};
   for (const item of summary.mouse) mouse[item.button || item.event_type] = item.count;
-  const sideCount = (mouse.x1 || 0) + (mouse.x2 || 0);
+  const sideCount = (mouse.x1 || 0) + (mouse.x2 || 0) + (mouse.side || 0);
   document.getElementById("mouse-left").textContent = formatNumber(mouse.left);
   document.getElementById("mouse-right").textContent = formatNumber(mouse.right);
   document.getElementById("mouse-middle").textContent = formatNumber(mouse.middle);
@@ -408,3 +408,4 @@ buildKeyboard();
 requestAnimationFrame(fitKeyboard);
 refresh();
 setInterval(refresh, 1000);
+

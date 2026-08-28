@@ -19,6 +19,7 @@ class Tracker:
         self.paused = False
         self.started_at = datetime.now()
         self._last_move = None
+        self._pressed_keys = set()
         self._keyboard_listener = None
         self._mouse_listener = None
 
@@ -42,6 +43,7 @@ class Tracker:
         self.paused = bool(paused)
         if not self.paused:
             self._last_move = None
+        self._pressed_keys = set()
 
     def _on_key_press(self, key):
         if self.paused:
@@ -50,7 +52,17 @@ class Tracker:
             name = normalize_key(key)
         except Exception:
             name = "unknown"
+        if name in self._pressed_keys:
+            return
+        self._pressed_keys.add(name)
         self.db.record_key(name)
+
+    def _on_key_release(self, key):
+        try:
+            name = normalize_key(key)
+        except Exception:
+            return
+        self._pressed_keys.discard(name)
 
     def _on_mouse_move(self, x, y):
         if self.paused:
@@ -73,7 +85,10 @@ class Tracker:
             name = button.name or "unknown"
         except Exception:
             name = "unknown"
-        self.db.record_mouse("click", name, x, y)
+        if name in ("unknown", "x1", "x2", "side"):
+            self.db.record_mouse("click", "side", x, y)
+        else:
+            self.db.record_mouse("click", name, x, y)
 
     def _on_mouse_scroll(self, x, y, dx, dy):
         if self.paused:
@@ -154,3 +169,4 @@ class Tracker:
         for row in self.db.hourly_distance(start, end):
             hours[int(row["hour"])]["distance"] = round(row["distance"], 1)
         return {"date": today, "hours": hours}
+
