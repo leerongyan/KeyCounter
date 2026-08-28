@@ -21,8 +21,8 @@ def get_all():
         return dict(DEFAULTS)
 
 
-def get(key):
-    return get_all().get(key, DEFAULTS.get(key))
+def get(key, default=None):
+    return get_all().get(key, default if default is not None else DEFAULTS.get(key))
 
 
 def set(key, value):
