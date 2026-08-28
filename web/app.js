@@ -4,6 +4,14 @@ const KEY_LABELS = {
   meta: "Win",
   alt_gr: "AltGr",
   menu: "Menu",
+  right: "→ 右方向键",
+  left: "← 左方向键",
+  up: "↑ 上方向键",
+  down: "↓ 下方向键",
+  insert: "Ins",
+  home: "Home",
+  end: "End",
+  delete: "Del",
   print_screen: "PrtSc",
   scroll_lock: "ScrLk",
   page_up: "PgUp",
@@ -73,22 +81,35 @@ const KEYBOARD_ROWS = [
 
 const NUMPAD_KEYS = [
   { id: "num_lock", label: "NumLk", row: 1, col: 1 },
-  { id: "divide", label: "/", row: 1, col: 2 },
-  { id: "multiply", label: "*", row: 1, col: 3 },
-  { id: "subtract", label: "-", row: 1, col: 4 },
-  { id: "7", label: "7", row: 2, col: 1 },
-  { id: "8", label: "8", row: 2, col: 2 },
-  { id: "9", label: "9", row: 2, col: 3 },
-  { id: "add", label: "+", row: 2, col: 4, rowSpan: 2 },
-  { id: "4", label: "4", row: 3, col: 1 },
-  { id: "5", label: "5", row: 3, col: 2 },
-  { id: "6", label: "6", row: 3, col: 3 },
-  { id: "1", label: "1", row: 4, col: 1 },
-  { id: "2", label: "2", row: 4, col: 2 },
-  { id: "3", label: "3", row: 4, col: 3 },
+  { id: "numpad_divide", label: "/", row: 1, col: 2 },
+  { id: "numpad_multiply", label: "*", row: 1, col: 3 },
+  { id: "numpad_subtract", label: "-", row: 1, col: 4 },
+  { id: "numpad7", label: "7", row: 2, col: 1 },
+  { id: "numpad8", label: "8", row: 2, col: 2 },
+  { id: "numpad9", label: "9", row: 2, col: 3 },
+  { id: "numpad_add", label: "+", row: 2, col: 4, rowSpan: 2 },
+  { id: "numpad4", label: "4", row: 3, col: 1 },
+  { id: "numpad5", label: "5", row: 3, col: 2 },
+  { id: "numpad6", label: "6", row: 3, col: 3 },
+  { id: "numpad1", label: "1", row: 4, col: 1 },
+  { id: "numpad2", label: "2", row: 4, col: 2 },
+  { id: "numpad3", label: "3", row: 4, col: 3 },
   { id: "enter", label: "Enter", row: 4, col: 4, rowSpan: 2 },
-  { id: "0", label: "0", row: 5, col: 1, colSpan: 2 },
-  { id: "decimal", label: ".", row: 5, col: 3 },
+  { id: "numpad0", label: "0", row: 5, col: 1, colSpan: 2 },
+  { id: "numpad_decimal", label: ".", row: 5, col: 3 },
+];
+
+const NAV_KEYS = [
+  { id: "insert", label: "Ins", row: 1, col: 1 },
+  { id: "home", label: "Home", row: 1, col: 2 },
+  { id: "page_up", label: "PgUp", row: 1, col: 3 },
+  { id: "delete", label: "Del", row: 2, col: 1 },
+  { id: "end", label: "End", row: 2, col: 2 },
+  { id: "page_down", label: "PgDn", row: 2, col: 3 },
+  { id: "up", label: "↑", row: 4, col: 2 },
+  { id: "left", label: "←", row: 5, col: 1 },
+  { id: "down", label: "↓", row: 5, col: 2 },
+  { id: "right", label: "→", row: 5, col: 3 },
 ];
 
 const state = {
@@ -143,7 +164,16 @@ function buildKeyboard() {
     if (key.colSpan) el.style.gridColumnEnd = `span ${key.colSpan}`;
     numpad.appendChild(el);
   }
-  keyboardEl.append(main, numpad);
+  const nav = document.createElement("div");
+  nav.className = "nav-cluster";
+  for (const key of NAV_KEYS) {
+    const el = createKeyButton(key);
+    el.style.flex = "";
+    el.style.gridRowStart = key.row;
+    el.style.gridColumnStart = key.col;
+    nav.appendChild(el);
+  }
+  keyboardEl.append(main, nav, numpad);
 }
 
 function fitKeyboard() {
@@ -152,7 +182,7 @@ function fitKeyboard() {
   const naturalH = keyboardEl.scrollHeight || 300;
   const availableW = keyboardStage.clientWidth || 620;
   const availableH = keyboardStage.clientHeight || 260;
-  const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 1.4));
+  const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 2.4));
   keyboardHolder.style.setProperty("--kb-scale", scale.toFixed(3));
 }
 
@@ -243,7 +273,7 @@ function renderSummary(summary) {
         return `
           <li>
             <span>${index + 1}</span>
-            <span class="top-key-name">${escapeHtml(item.key_name)}</span>
+            <span class="top-key-name">${escapeHtml(labelFor(item.key_name, item.key_name))}</span>
             <span class="top-key-bar" style="width: ${width}%;"></span>
             <span class="top-key-count">${formatNumber(item.count)}</span>
           </li>
@@ -268,7 +298,7 @@ function renderHeatmap(payload) {
   for (const el of document.querySelectorAll(".key")) {
     const keyName = el.dataset.key;
     const count = counts[keyName] || counts[keyName.toUpperCase()] || 0;
-    const heat = count > 0 ? 0.12 + 0.82 * (count / maxCount) : 0;
+    const heat = count > 0 ? 0.08 + 0.9 * (Math.log(count) / Math.log(maxCount)) : 0;
     el.style.setProperty("--heat", heat.toFixed(3));
     el.title = count > 0 ? `${labelFor(keyName, keyName)}: ${formatNumber(count)} 次` : "";
   }
@@ -278,43 +308,41 @@ function renderHeatmap(payload) {
 
 function renderTrend(payload) {
   const hours = payload.hours || [];
-  const maxKeys = Math.max(1, ...hours.map((item) => item.keys));
-  const maxClicks = Math.max(1, ...hours.map((item) => item.clicks));
-  const chart = document.getElementById("trend-chart");
-  chart.innerHTML = hours
-    .map((item) => {
-      const keysHeight = Math.max(item.keys > 0 ? 2 : 0, (item.keys / maxKeys) * 100);
-      const clicksHeight = Math.max(item.clicks > 0 ? 2 : 0, (item.clicks / maxClicks) * 100);
-      return `
-        <div class="trend-col" title="${item.hour}:00  按键 ${item.keys}  点击 ${item.clicks}">
-          <div class="trend-bars">
-            <div class="trend-bar keys" style="height:${keysHeight}%"></div>
-            <div class="trend-bar clicks" style="height:${clicksHeight}%"></div>
-          </div>
-          <span class="trend-hour">${item.hour}</span>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-function renderSettings(settings) {
-  const value = settings.close_action || "ask";
-  if (closeActionSelect.value !== value) closeActionSelect.value = value;
-}
-
-closeActionSelect.addEventListener("change", async () => {
-  try {
-    const result = await fetchJSON("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ close_action: closeActionSelect.value }),
-    });
-    renderSettings(result);
-  } catch (error) {
-    statusText.textContent = "关闭窗口设置保存失败";
+  const totalKeys = hours.reduce((sum, item) => sum + item.keys, 0);
+  const totalClicks = hours.reduce((sum, item) => sum + item.clicks, 0);
+  const active = hours.reduce((best, item) => {
+    return item.keys + item.clicks > best.keys + best.clicks ? item : best;
+  }, hours[0] || { hour: 0, keys: 0, clicks: 0 });
+  const summaryEl = document.getElementById("trend-summary");
+  if (summaryEl) {
+    summaryEl.textContent = `今日按键 ${formatNumber(totalKeys)} · 点击 ${formatNumber(totalClicks)} · 最活跃 ${String(active.hour).padStart(2, "0")}:00`;
   }
-});
+
+  const maxValue = Math.max(1, ...hours.map((item) => Math.max(item.keys, item.clicks)));
+  const chart = document.getElementById("trend-chart");
+  const columns = hours.map((item) => {
+    const keysHeight = Math.max(item.keys > 0 ? 2 : 0, (item.keys / maxValue) * 100);
+    const clicksHeight = Math.max(item.clicks > 0 ? 2 : 0, (item.clicks / maxValue) * 100);
+    return `
+      <div class="trend-col" title="${item.hour}:00  按键 ${item.keys} 次，点击 ${item.clicks} 次">
+        <div class="trend-bars">
+          <div class="trend-bar keys" style="height:${keysHeight}%"></div>
+          <div class="trend-bar clicks" style="height:${clicksHeight}%"></div>
+        </div>
+        <span class="trend-hour">${String(item.hour).padStart(2, "0")}</span>
+      </div>
+    `;
+  }).join("");
+
+  chart.innerHTML = `
+    <div class="trend-yaxis">
+      <span>${formatNumber(maxValue)}</span>
+      <span>${formatNumber(Math.ceil(maxValue / 2))}</span>
+      <span>0</span>
+    </div>
+    <div class="trend-columns">${columns}</div>
+  `;
+}
 
 
 async function refresh() {

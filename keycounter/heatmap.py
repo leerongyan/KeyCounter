@@ -1,8 +1,9 @@
+import math
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .layout import KEYBOARD_ROWS, NUMPAD_KEYS
+from .layout import KEYBOARD_ROWS, NAV_KEYS, NUMPAD_KEYS
 
 KEY_W = 50
 KEY_H = 42
@@ -41,8 +42,9 @@ def _count_for(key_id, counts):
 def render_heatmap(counts, day, total_keys):
     max_count = max(counts.values(), default=1)
     main_width = int(max(sum(width for _, _, width in row) for row in KEYBOARD_ROWS) * KEY_W + 13 * GAP)
+    nav_width = 3 * KEY_W + 2 * GAP
     numpad_width = 4 * KEY_W + 3 * GAP
-    keyboard_width = main_width + 24 + numpad_width
+    keyboard_width = main_width + 14 + nav_width + 14 + numpad_width
     title_height = 68
     legend_height = 34
     canvas_w = keyboard_width + PAD * 2
@@ -65,7 +67,7 @@ def render_heatmap(counts, day, total_keys):
         for key_id, label, width in row:
             cell_w = round(width * KEY_W + (width - 1) * GAP)
             count = _count_for(key_id, counts)
-            ratio = count / max_count if max_count else 0
+            ratio = math.log1p(count) / math.log1p(max_count) if max_count > 1 and count > 0 else 0
             draw.rounded_rectangle(
                 [x, y, x + cell_w, y + KEY_H],
                 radius=6,
@@ -83,24 +85,46 @@ def render_heatmap(counts, day, total_keys):
             x += cell_w + GAP
         y += KEY_H + GAP
 
-    num_x = PAD + main_width + 24
-    num_y = PAD + title_height
-    for key_id, label, row, col, row_span, col_span in NUMPAD_KEYS:
-        cell_w = round(col_span * KEY_W + (col_span - 1) * GAP)
-        cell_h = round(row_span * KEY_H + (row_span - 1) * GAP)
-        x = num_x + (col - 1) * (KEY_W + GAP)
-        y = num_y + (row - 1) * (KEY_H + GAP)
+    nav_x = PAD + main_width + 14
+    nav_y = PAD + title_height
+    for key_id, label, row, col in NAV_KEYS:
+        x = nav_x + (col - 1) * (KEY_W + GAP)
+        yy = nav_y + (row - 1) * (KEY_H + GAP)
         count = _count_for(key_id, counts)
-        ratio = count / max_count if max_count else 0
+        ratio = math.log1p(count) / math.log1p(max_count) if max_count > 1 and count > 0 else 0
         draw.rounded_rectangle(
-            [x, y, x + cell_w, y + cell_h],
+            [x, yy, x + KEY_W, yy + KEY_H],
             radius=6,
             fill=_flat_color(ratio),
             outline=(178, 192, 198),
             width=1,
         )
         draw.text(
-            (x + cell_w / 2, y + cell_h / 2),
+            (x + KEY_W / 2, yy + KEY_H / 2),
+            label,
+            font=_font(12),
+            fill=(30, 45, 39),
+            anchor="mm",
+        )
+
+    num_x = nav_x + nav_width + 14
+    num_y = PAD + title_height
+    for key_id, label, row, col, row_span, col_span in NUMPAD_KEYS:
+        cell_w = round(col_span * KEY_W + (col_span - 1) * GAP)
+        cell_h = round(row_span * KEY_H + (row_span - 1) * GAP)
+        x = num_x + (col - 1) * (KEY_W + GAP)
+        yy = num_y + (row - 1) * (KEY_H + GAP)
+        count = _count_for(key_id, counts)
+        ratio = math.log1p(count) / math.log1p(max_count) if max_count > 1 and count > 0 else 0
+        draw.rounded_rectangle(
+            [x, yy, x + cell_w, yy + cell_h],
+            radius=6,
+            fill=_flat_color(ratio),
+            outline=(178, 192, 198),
+            width=1,
+        )
+        draw.text(
+            (x + cell_w / 2, yy + cell_h / 2),
             label,
             font=_font(12),
             fill=(30, 45, 39),
@@ -120,3 +144,4 @@ def render_heatmap(counts, day, total_keys):
     buffer = BytesIO()
     image.save(buffer, format="PNG")
     return buffer.getvalue()
+

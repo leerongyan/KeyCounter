@@ -87,7 +87,14 @@
     </div>
 
     <section class="panel trend-panel" aria-labelledby="trend-title">
-      <div class="panel-head"><h2 id="trend-title">今日每小时趋势</h2><p class="panel-note">按键数与点击数</p></div>
+      <div class="panel-head">
+        <h2 id="trend-title">今日每小时趋势</h2>
+        <p class="panel-note" id="trend-summary">正在统计今日按键与点击...</p>
+        <div class="trend-legend">
+          <span class="legend-key keys"></span>按键次数
+          <span class="legend-key clicks"></span>鼠标点击
+        </div>
+      </div>
       <div id="trend-chart" class="trend-chart"></div>
     </section>
   </main>
