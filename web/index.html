@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>键盘鼠标使用统计</title>
+  <title>KeyCounter 键盘鼠标统计</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -16,6 +16,18 @@
       </div>
     </div>
     <div class="top-actions">
+      <label class="unit-field">距离
+        <select id="distance-unit">
+          <option value="auto">自动</option>
+          <option value="mm">毫米</option>
+          <option value="cm">厘米</option>
+          <option value="m">米</option>
+          <option value="km">千米</option>
+          <option value="inch">英寸</option>
+          <option value="ft">英尺</option>
+          <option value="px">像素</option>
+        </select>
+      </label>
       <a class="action-button" href="/api/export?format=csv">导出数据</a>
       <a class="action-button" href="/api/export/heatmap.png">热力图 PNG</a>
       <button id="autostart-button" type="button">开启开机自启</button>
@@ -26,75 +38,41 @@
 
   <main>
     <section class="stat-strip" aria-label="今日统计">
-      <div class="stat-item">
-        <strong id="stat-keys">--</strong>
-        <span>今日按键</span>
-      </div>
-      <div class="stat-item">
-        <strong id="stat-clicks">--</strong>
-        <span>鼠标点击</span>
-      </div>
-      <div class="stat-item">
-        <strong id="stat-scrolls">--</strong>
-        <span>滚轮次数</span>
-      </div>
-      <div class="stat-item">
-        <strong id="stat-distance">--</strong>
-        <span>移动距离</span>
-      </div>
+      <div class="stat-item"><strong id="stat-keys">--</strong><span>今日按键</span></div>
+      <div class="stat-item"><strong id="stat-clicks">--</strong><span>鼠标点击</span></div>
+      <div class="stat-item"><strong id="stat-scrolls">--</strong><span>滚轮次数</span></div>
+      <div class="stat-item"><strong id="stat-distance">--</strong><span>移动距离</span></div>
     </section>
 
-    <div class="main-grid">
+    <div class="workspace">
       <section class="panel heatmap-panel" aria-labelledby="heatmap-title">
         <div class="panel-head">
           <h2 id="heatmap-title">键盘热力图</h2>
-          <div class="legend">
-            <span>少</span>
-            <span class="legend-gradient"></span>
-            <span>多</span>
+          <div class="legend"><span>少</span><span class="legend-gradient"></span><span>多</span></div>
+        </div>
+        <div class="keyboard-stage">
+          <div class="keyboard-holder" id="keyboard-holder">
+            <div id="keyboard" class="keyboard"></div>
           </div>
         </div>
-        <div class="keyboard-scroll">
-          <div id="keyboard" class="keyboard"></div>
-        </div>
+        <div class="heatmap-footer"><span id="heatmap-info">等待数据...</span></div>
       </section>
 
       <aside class="side-stack">
-        <section class="panel" aria-labelledby="mouse-title">
+        <section class="panel mouse-panel" aria-labelledby="mouse-title">
           <h2 id="mouse-title">鼠标统计</h2>
           <dl class="mouse-list" id="mouse-list">
-            <div>
-              <dt>左键</dt>
-              <dd id="mouse-left">--</dd>
-            </div>
-            <div>
-              <dt>右键</dt>
-              <dd id="mouse-right">--</dd>
-            </div>
-            <div>
-              <dt>中键</dt>
-              <dd id="mouse-middle">--</dd>
-            </div>
-            <div>
-              <dt>侧键</dt>
-              <dd id="mouse-side">--</dd>
-            </div>
-            <div>
-              <dt>滚轮上</dt>
-              <dd id="mouse-up">--</dd>
-            </div>
-            <div>
-              <dt>滚轮下</dt>
-              <dd id="mouse-down">--</dd>
-            </div>
-            <div>
-              <dt>移动距离</dt>
-              <dd id="mouse-distance">--</dd>
-            </div>
+            <div><dt>左键</dt><dd id="mouse-left">--</dd></div>
+            <div><dt>右键</dt><dd id="mouse-right">--</dd></div>
+            <div><dt>中键</dt><dd id="mouse-middle">--</dd></div>
+            <div><dt>侧键</dt><dd id="mouse-side">--</dd></div>
+            <div><dt>滚轮上</dt><dd id="mouse-up">--</dd></div>
+            <div><dt>滚轮下</dt><dd id="mouse-down">--</dd></div>
+            <div><dt>移动距离</dt><dd id="mouse-distance">--</dd></div>
           </dl>
         </section>
 
-        <section class="panel" aria-labelledby="top-title">
+        <section class="panel top-panel" aria-labelledby="top-title">
           <h2 id="top-title">最常用按键</h2>
           <ol class="top-list" id="top-list"></ol>
         </section>
@@ -102,10 +80,7 @@
     </div>
 
     <section class="panel trend-panel" aria-labelledby="trend-title">
-      <div class="panel-head">
-        <h2 id="trend-title">今日每小时趋势</h2>
-        <p class="panel-note">按键数与点击数</p>
-      </div>
+      <div class="panel-head"><h2 id="trend-title">今日每小时趋势</h2><p class="panel-note">按键数与点击数</p></div>
       <div id="trend-chart" class="trend-chart"></div>
     </section>
   </main>

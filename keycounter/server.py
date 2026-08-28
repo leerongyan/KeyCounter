@@ -63,17 +63,6 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "paused": self.server.tracker.paused,
                 "autostart_enabled": autostart.is_enabled(),
             })
-        elif self.path == "/api/autostart":
-            length = int(self.headers.get("Content-Length", 0) or 0)
-            try:
-                body = json.loads(self.rfile.read(length) or b"{}")
-            except json.JSONDecodeError:
-                body = {}
-            if body.get("enabled"):
-                autostart.enable()
-            else:
-                autostart.disable()
-            self._send_json({"enabled": autostart.is_enabled()})
         else:
             self._send_error(404, "Not Found")
 
@@ -87,6 +76,21 @@ class DashboardHandler(BaseHTTPRequestHandler):
             paused = bool(body.get("paused", False))
             self.server.tracker.set_paused(paused)
             self._send_json({"paused": self.server.tracker.paused})
+        elif self.path == "/api/autostart":
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            try:
+                body = json.loads(self.rfile.read(length) or b"{}")
+            except json.JSONDecodeError:
+                body = {}
+            try:
+                if body.get("enabled"):
+                    autostart.enable()
+                else:
+                    autostart.disable()
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)})
+            else:
+                self._send_json({"ok": True, "enabled": autostart.is_enabled()})
         else:
             self._send_error(404, "Not Found")
 

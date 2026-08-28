@@ -20,88 +20,53 @@ const KEY_LABELS = {
 
 const KEYBOARD_ROWS = [
   [
-    { id: "esc", label: "Esc", width: 1 },
-    { id: "f1", label: "F1", width: 1 },
-    { id: "f2", label: "F2", width: 1 },
-    { id: "f3", label: "F3", width: 1 },
-    { id: "f4", label: "F4", width: 1 },
-    { id: "f5", label: "F5", width: 1 },
-    { id: "f6", label: "F6", width: 1 },
-    { id: "f7", label: "F7", width: 1 },
-    { id: "f8", label: "F8", width: 1 },
-    { id: "f9", label: "F9", width: 1 },
-    { id: "f10", label: "F10", width: 1 },
-    { id: "f11", label: "F11", width: 1 },
+    { id: "esc", label: "Esc", width: 1 }, { id: "f1", label: "F1", width: 1 },
+    { id: "f2", label: "F2", width: 1 }, { id: "f3", label: "F3", width: 1 },
+    { id: "f4", label: "F4", width: 1 }, { id: "f5", label: "F5", width: 1 },
+    { id: "f6", label: "F6", width: 1 }, { id: "f7", label: "F7", width: 1 },
+    { id: "f8", label: "F8", width: 1 }, { id: "f9", label: "F9", width: 1 },
+    { id: "f10", label: "F10", width: 1 }, { id: "f11", label: "F11", width: 1 },
     { id: "f12", label: "F12", width: 1 },
   ],
   [
-    { id: "`", label: "`", width: 1 },
-    { id: "1", label: "1", width: 1 },
-    { id: "2", label: "2", width: 1 },
-    { id: "3", label: "3", width: 1 },
-    { id: "4", label: "4", width: 1 },
-    { id: "5", label: "5", width: 1 },
-    { id: "6", label: "6", width: 1 },
-    { id: "7", label: "7", width: 1 },
-    { id: "8", label: "8", width: 1 },
-    { id: "9", label: "9", width: 1 },
-    { id: "0", label: "0", width: 1 },
-    { id: "-", label: "-", width: 1 },
-    { id: "=", label: "=", width: 1 },
-    { id: "backspace", label: "Backspace", width: 2 },
+    { id: "`", label: "`", width: 1 }, { id: "1", label: "1", width: 1 },
+    { id: "2", label: "2", width: 1 }, { id: "3", label: "3", width: 1 },
+    { id: "4", label: "4", width: 1 }, { id: "5", label: "5", width: 1 },
+    { id: "6", label: "6", width: 1 }, { id: "7", label: "7", width: 1 },
+    { id: "8", label: "8", width: 1 }, { id: "9", label: "9", width: 1 },
+    { id: "0", label: "0", width: 1 }, { id: "-", label: "-", width: 1 },
+    { id: "=", label: "=", width: 1 }, { id: "backspace", label: "Backspace", width: 2 },
   ],
   [
-    { id: "tab", label: "Tab", width: 1.5 },
-    { id: "q", label: "Q", width: 1 },
-    { id: "w", label: "W", width: 1 },
-    { id: "e", label: "E", width: 1 },
-    { id: "r", label: "R", width: 1 },
-    { id: "t", label: "T", width: 1 },
-    { id: "y", label: "Y", width: 1 },
-    { id: "u", label: "U", width: 1 },
-    { id: "i", label: "I", width: 1 },
-    { id: "o", label: "O", width: 1 },
-    { id: "p", label: "P", width: 1 },
-    { id: "[", label: "[", width: 1 },
-    { id: "]", label: "]", width: 1 },
-    { id: "\\", label: "\\", width: 1.5 },
+    { id: "tab", label: "Tab", width: 1.5 }, { id: "q", label: "Q", width: 1 },
+    { id: "w", label: "W", width: 1 }, { id: "e", label: "E", width: 1 },
+    { id: "r", label: "R", width: 1 }, { id: "t", label: "T", width: 1 },
+    { id: "y", label: "Y", width: 1 }, { id: "u", label: "U", width: 1 },
+    { id: "i", label: "I", width: 1 }, { id: "o", label: "O", width: 1 },
+    { id: "p", label: "P", width: 1 }, { id: "[", label: "[", width: 1 },
+    { id: "]", label: "]", width: 1 }, { id: "\\", label: "\\", width: 1.5 },
   ],
   [
-    { id: "capslock", label: "Caps", width: 1.75 },
-    { id: "a", label: "A", width: 1 },
-    { id: "s", label: "S", width: 1 },
-    { id: "d", label: "D", width: 1 },
-    { id: "f", label: "F", width: 1 },
-    { id: "g", label: "G", width: 1 },
-    { id: "h", label: "H", width: 1 },
-    { id: "j", label: "J", width: 1 },
-    { id: "k", label: "K", width: 1 },
-    { id: "l", label: "L", width: 1 },
-    { id: ";", label: ";", width: 1 },
-    { id: "'", label: "'", width: 1 },
+    { id: "capslock", label: "Caps", width: 1.75 }, { id: "a", label: "A", width: 1 },
+    { id: "s", label: "S", width: 1 }, { id: "d", label: "D", width: 1 },
+    { id: "f", label: "F", width: 1 }, { id: "g", label: "G", width: 1 },
+    { id: "h", label: "H", width: 1 }, { id: "j", label: "J", width: 1 },
+    { id: "k", label: "K", width: 1 }, { id: "l", label: "L", width: 1 },
+    { id: ";", label: ";", width: 1 }, { id: "'", label: "'", width: 1 },
     { id: "enter", label: "Enter", width: 2.25 },
   ],
   [
-    { id: "shift", label: "Shift", width: 2.25 },
-    { id: "z", label: "Z", width: 1 },
-    { id: "x", label: "X", width: 1 },
-    { id: "c", label: "C", width: 1 },
-    { id: "v", label: "V", width: 1 },
-    { id: "b", label: "B", width: 1 },
-    { id: "n", label: "N", width: 1 },
-    { id: "m", label: "M", width: 1 },
-    { id: ",", label: ",", width: 1 },
-    { id: ".", label: ".", width: 1 },
-    { id: "/", label: "/", width: 1 },
-    { id: "shift", label: "Shift", width: 2.75 },
+    { id: "shift", label: "Shift", width: 2.25 }, { id: "z", label: "Z", width: 1 },
+    { id: "x", label: "X", width: 1 }, { id: "c", label: "C", width: 1 },
+    { id: "v", label: "V", width: 1 }, { id: "b", label: "B", width: 1 },
+    { id: "n", label: "N", width: 1 }, { id: "m", label: "M", width: 1 },
+    { id: ",", label: ",", width: 1 }, { id: ".", label: ".", width: 1 },
+    { id: "/", label: "/", width: 1 }, { id: "shift", label: "Shift", width: 2.75 },
   ],
   [
-    { id: "ctrl", label: "Ctrl", width: 1.5 },
-    { id: "meta", label: "Win", width: 1.25 },
-    { id: "alt", label: "Alt", width: 1.25 },
-    { id: "space", label: "Space", width: 6.25 },
-    { id: "alt_gr", label: "AltGr", width: 1.25 },
-    { id: "menu", label: "Menu", width: 1.25 },
+    { id: "ctrl", label: "Ctrl", width: 1.5 }, { id: "meta", label: "Win", width: 1.25 },
+    { id: "alt", label: "Alt", width: 1.25 }, { id: "space", label: "Space", width: 6.25 },
+    { id: "alt_gr", label: "AltGr", width: 1.25 }, { id: "menu", label: "Menu", width: 1.25 },
     { id: "ctrl", label: "Ctrl", width: 1.5 },
   ],
 ];
@@ -128,19 +93,24 @@ const NUMPAD_KEYS = [
 
 const state = {
   paused: false,
+  summary: null,
+  unit: localStorage.getItem("distance-unit") || "auto",
 };
 
 const statusText = document.getElementById("status-text");
 const liveIndicator = document.getElementById("live-indicator");
 const pauseButton = document.getElementById("pause-button");
 const autostartButton = document.getElementById("autostart-button");
+const unitSelect = document.getElementById("distance-unit");
+const keyboardEl = document.getElementById("keyboard");
+const keyboardHolder = document.getElementById("keyboard-holder");
+const keyboardStage = document.querySelector(".keyboard-stage");
 
 function createKeyButton(key) {
   const el = document.createElement("div");
   el.className = "key";
   el.dataset.key = key.id;
   el.style.flex = `${key.width || 1} 1 0`;
-
   const hint = document.createElement("span");
   hint.className = "key-hint";
   hint.textContent = labelFor(key.id, key.label);
@@ -153,19 +123,14 @@ function labelFor(id, fallback) {
 }
 
 function buildKeyboard() {
-  const keyboard = document.getElementById("keyboard");
   const main = document.createElement("div");
   main.className = "kb-main";
-
   for (const row of KEYBOARD_ROWS) {
     const rowEl = document.createElement("div");
     rowEl.className = "kb-row";
-    for (const key of row) {
-      rowEl.appendChild(createKeyButton(key));
-    }
+    for (const key of row) rowEl.appendChild(createKeyButton(key));
     main.appendChild(rowEl);
   }
-
   const numpad = document.createElement("div");
   numpad.className = "numpad";
   for (const key of NUMPAD_KEYS) {
@@ -173,45 +138,60 @@ function buildKeyboard() {
     el.style.flex = "";
     el.style.gridRowStart = key.row;
     el.style.gridColumnStart = key.col;
-    if (key.rowSpan) {
-      el.style.gridRowEnd = `span ${key.rowSpan}`;
-    }
-    if (key.colSpan) {
-      el.style.gridColumnEnd = `span ${key.colSpan}`;
-    }
+    if (key.rowSpan) el.style.gridRowEnd = `span ${key.rowSpan}`;
+    if (key.colSpan) el.style.gridColumnEnd = `span ${key.colSpan}`;
     numpad.appendChild(el);
   }
+  keyboardEl.append(main, numpad);
+}
 
-  keyboard.append(main, numpad);
+function fitKeyboard() {
+  if (!keyboardEl || !keyboardHolder || !keyboardStage) return;
+  const naturalW = keyboardEl.scrollWidth || 940;
+  const naturalH = keyboardEl.scrollHeight || 300;
+  const availableW = keyboardStage.clientWidth || 620;
+  const availableH = keyboardStage.clientHeight || 260;
+  const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 1.4));
+  keyboardHolder.style.setProperty("--kb-scale", scale.toFixed(3));
 }
 
 function formatNumber(value) {
   return new Intl.NumberFormat("zh-CN").format(value || 0);
 }
 
+const DISTANCE_UNITS = {
+  auto: { auto: true },
+  mm: { factor: 25.4 / 96, suffix: "mm" },
+  cm: { factor: 2.54 / 96, suffix: "cm" },
+  m: { factor: 1 / 3779.527, suffix: "m" },
+  km: { factor: 1 / 3779527.559, suffix: "km" },
+  inch: { factor: 1 / 96, suffix: "in" },
+  ft: { factor: 1 / 1152, suffix: "ft" },
+  px: { factor: 1, suffix: "px" },
+};
+
 function formatDistance(px) {
-  const meters = px / 3779.527;
-  if (meters >= 1) {
-    return `${meters.toFixed(2)} m`;
+  if (state.unit === "auto") {
+    const meters = (px || 0) / 3779.527;
+    return meters >= 1 ? `${meters.toFixed(2)} m` : `${Math.round(px || 0).toLocaleString("zh-CN")} px`;
   }
-  return `${Math.round(px).toLocaleString("zh-CN")} px`;
+  const unit = DISTANCE_UNITS[state.unit] || DISTANCE_UNITS.m;
+  const value = (px || 0) * unit.factor;
+  if (unit.suffix === "px") return `${Math.round(value).toLocaleString("zh-CN")} px`;
+  const abs = Math.abs(value);
+  const digits = abs >= 100 ? 1 : abs >= 1 ? 2 : 3;
+  return `${value.toFixed(digits)} ${unit.suffix}`;
 }
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
+  return String(value).replace(/[&<>"'/]/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[char]));
 }
 
 async function fetchJSON(url, options) {
   const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return response.json();
 }
 
@@ -228,17 +208,20 @@ function renderAutostart(enabled) {
   autostartButton.classList.toggle("enabled", enabled);
 }
 
+function renderDistance() {
+  if (!state.summary) return;
+  const text = formatDistance(state.summary.distance_px);
+  document.getElementById("stat-distance").textContent = text;
+  document.getElementById("mouse-distance").textContent = text;
+}
+
 function renderSummary(summary) {
+  state.summary = summary;
   document.getElementById("stat-keys").textContent = formatNumber(summary.keys);
   document.getElementById("stat-clicks").textContent = formatNumber(summary.clicks);
   document.getElementById("stat-scrolls").textContent = formatNumber(summary.scrolls);
-  document.getElementById("stat-distance").textContent = formatDistance(summary.distance_px);
-
   const mouse = {};
-  for (const item of summary.mouse) {
-    mouse[item.button || item.event_type] = item.count;
-  }
-
+  for (const item of summary.mouse) mouse[item.button || item.event_type] = item.count;
   const sideCount = (mouse.x1 || 0) + (mouse.x2 || 0);
   document.getElementById("mouse-left").textContent = formatNumber(mouse.left);
   document.getElementById("mouse-right").textContent = formatNumber(mouse.right);
@@ -246,7 +229,7 @@ function renderSummary(summary) {
   document.getElementById("mouse-side").textContent = formatNumber(sideCount);
   document.getElementById("mouse-up").textContent = formatNumber(mouse.up);
   document.getElementById("mouse-down").textContent = formatNumber(mouse.down);
-  document.getElementById("mouse-distance").textContent = formatDistance(summary.distance_px);
+  renderDistance();
 
   const topList = document.getElementById("top-list");
   if (!summary.top_keys.length) {
@@ -270,26 +253,26 @@ function renderSummary(summary) {
 
   renderPause(summary.paused);
   renderAutostart(summary.autostart_enabled);
-  statusText.textContent = summary.paused
-    ? "统计已暂停"
-    : `统计中 · 更新于 ${new Date().toLocaleTimeString("zh-CN")}`;
+  statusText.textContent = summary.paused ? "统计已暂停" : `统计中 · ${new Date().toLocaleTimeString("zh-CN")}`;
 }
 
 function renderHeatmap(payload) {
   const counts = {};
+  let total = 0;
   for (const item of payload.keys) {
     counts[item.key_name] = item.count;
+    total += item.count;
   }
   const maxCount = Math.max(1, ...Object.values(counts));
-  const keys = document.querySelectorAll(".key");
-
-  for (const el of keys) {
+  for (const el of document.querySelectorAll(".key")) {
     const keyName = el.dataset.key;
     const count = counts[keyName] || counts[keyName.toUpperCase()] || 0;
     const heat = count > 0 ? 0.12 + 0.82 * (count / maxCount) : 0;
     el.style.setProperty("--heat", heat.toFixed(3));
     el.title = count > 0 ? `${labelFor(keyName, keyName)}: ${formatNumber(count)} 次` : "";
   }
+  document.getElementById("heatmap-info").textContent = `${payload.date} · 总计 ${formatNumber(total)} 次按键`;
+  requestAnimationFrame(fitKeyboard);
 }
 
 function renderTrend(payload) {
@@ -297,7 +280,6 @@ function renderTrend(payload) {
   const maxKeys = Math.max(1, ...hours.map((item) => item.keys));
   const maxClicks = Math.max(1, ...hours.map((item) => item.clicks));
   const chart = document.getElementById("trend-chart");
-
   chart.innerHTML = hours
     .map((item) => {
       const keysHeight = Math.max(item.keys > 0 ? 2 : 0, (item.keys / maxKeys) * 100);
@@ -353,12 +335,26 @@ autostartButton.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: !enabled }),
     });
-    renderAutostart(result.enabled);
+    if (result.enabled !== undefined) renderAutostart(result.enabled);
+    else throw new Error(result.error || "设置失败");
   } catch (error) {
-    statusText.textContent = "开机自启设置失败";
+    statusText.textContent = `开机自启设置失败：${error.message}`;
   }
 });
 
+unitSelect.value = state.unit;
+unitSelect.addEventListener("change", () => {
+  state.unit = unitSelect.value;
+  localStorage.setItem("distance-unit", state.unit);
+  renderDistance();
+});
+
+window.addEventListener("resize", () => requestAnimationFrame(fitKeyboard));
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(() => requestAnimationFrame(fitKeyboard)).observe(keyboardStage);
+}
+
 buildKeyboard();
+requestAnimationFrame(fitKeyboard);
 refresh();
-setInterval(refresh, 5000);
+setInterval(refresh, 1000);

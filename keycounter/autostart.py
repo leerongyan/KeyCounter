@@ -9,12 +9,12 @@ RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 def _start_command():
     if getattr(sys, "frozen", False):
-        return f'"{sys.executable}" --no-browser'
+        return f'"{sys.executable}"'
     project_root = Path(__file__).resolve().parent.parent
     python_exe = Path(sys.executable)
     pythonw = python_exe.with_name("pythonw.exe")
     launcher = pythonw if pythonw.exists() else python_exe
-    return f'"{launcher}" "{project_root / "app.py"}" --no-browser'
+    return f'"{launcher}" "{project_root / "app.py"}"'
 
 
 def is_enabled():

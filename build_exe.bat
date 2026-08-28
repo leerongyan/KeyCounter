@@ -11,6 +11,9 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name KeyCounter
   --hidden-import pynput.keyboard._win32 ^
   --hidden-import pynput.mouse._win32 ^
   --hidden-import pystray._win32 ^
+  --hidden-import webview.platforms.winforms ^
+  --hidden-import webview.platforms.win32 ^
+  --hidden-import webview.platforms.edgechromium ^
   app.py
 if errorlevel 1 goto :failed
 

@@ -1,4 +1,5 @@
-import webbrowser
+import datetime
+from pathlib import Path
 
 from . import autostart
 
@@ -12,10 +13,11 @@ except ImportError:
 
 
 class TrayController:
-    def __init__(self, tracker, url, on_quit):
+    def __init__(self, tracker, url, on_quit, on_open_panel):
         self.tracker = tracker
         self.url = url
         self.on_quit = on_quit
+        self.on_open_panel = on_open_panel
         self.icon = None
 
     def start(self):
@@ -24,7 +26,7 @@ class TrayController:
         menu = pystray.Menu(
             pystray.MenuItem(
                 "打开统计面板",
-                lambda icon, item: webbrowser.open(self.url),
+                lambda icon, item: self.on_open_panel(),
                 default=True,
             ),
             pystray.MenuItem("暂停 / 继续统计", self._toggle_pause),
@@ -33,10 +35,8 @@ class TrayController:
                 self._toggle_autostart,
                 checked=lambda item: autostart.is_enabled(),
             ),
-            pystray.MenuItem(
-                "导出 CSV",
-                lambda icon, item: webbrowser.open(self.url + "/api/export?format=csv"),
-            ),
+            pystray.MenuItem("导出 CSV 文件", self._export_csv),
+            pystray.MenuItem("导出热力图 PNG", self._export_heatmap),
             pystray.MenuItem("退出", self._quit),
         )
         self.icon = pystray.Icon(
@@ -62,6 +62,28 @@ class TrayController:
         autostart.toggle()
         if self.icon is not None:
             self.icon.update_menu()
+
+    def _export_csv(self, icon, item):
+        try:
+            data = self.tracker.export_csv()
+            filename = f"KeyCounter_stats_{datetime.date.today().isoformat()}.csv"
+            path = Path.home() / "Downloads" / filename
+            path.write_bytes(data)
+            icon.notify(f"已导出：{path}", "KeyCounter")
+        except Exception:
+            pass
+
+    def _export_heatmap(self, icon, item):
+        try:
+            data = self.tracker.heatmap_png()
+            if not data:
+                return
+            filename = f"KeyCounter_heatmap_{datetime.date.today().isoformat()}.png"
+            path = Path.home() / "Downloads" / filename
+            path.write_bytes(data)
+            icon.notify(f"已导出：{path}", "KeyCounter")
+        except Exception:
+            pass
 
     def _quit(self, icon, item):
         icon.stop()
