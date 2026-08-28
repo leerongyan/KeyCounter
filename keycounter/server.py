@@ -37,7 +37,11 @@ class DashboardHandler(BaseHTTPRequestHandler):
         elif path.startswith("/static/"):
             self._serve_static(path[len("/static/"):])
         elif path == "/api/summary":
-            self._send_json(self.server.tracker.summary())
+            query = urllib.parse.parse_qs(parsed.query)
+            self._send_json(self.server.tracker.summary(
+                query.get("start", [None])[0],
+                query.get("end", [None])[0],
+            ))
         elif path == "/api/export":
             self._send_download(
                 self.server.tracker.export_csv(),
@@ -54,10 +58,16 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_download(data, f"keycounter_heatmap_{day}.png", "image/png")
         elif path == "/api/heatmap":
             query = urllib.parse.parse_qs(parsed.query)
-            day = query.get("date", [date.today().isoformat()])[0]
-            self._send_json(self.server.tracker.heatmap(day))
+            self._send_json(self.server.tracker.heatmap(
+                query.get("start", [None])[0],
+                query.get("end", [None])[0],
+            ))
         elif path == "/api/trend":
-            self._send_json(self.server.tracker.trend())
+            query = urllib.parse.parse_qs(parsed.query)
+            self._send_json(self.server.tracker.trend(
+                query.get("start", [None])[0],
+                query.get("end", [None])[0],
+            ))
         elif path == "/api/settings":
             self._send_json(settings.get_all())
         elif path == "/api/status":

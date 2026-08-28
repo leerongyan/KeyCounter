@@ -96,35 +96,56 @@ class Tracker:
         direction = "up" if dy < 0 else "down"
         self.db.record_mouse("scroll", direction, x, y)
 
-    def summary(self):
+    @staticmethod
+    def _range_bounds(start, end):
         today = date.today().isoformat()
-        start, end = self.db.day_range(today)
-        distance_px = self.db.distance(start, end)
+        if start == "all" or end == "all":
+            return "全部", "全部", "0000-01-01 00:00:00", "9999-12-31 23:59:59"
+        if not start:
+            start = today
+        if not end:
+            end = today
+        try:
+            date.fromisoformat(start)
+            date.fromisoformat(end)
+        except ValueError:
+            start = today
+            end = today
+        if start > end:
+            start, end = end, start
+        start_text = f"{start} 00:00:00"
+        end_text = f"{end} 23:59:59"
+        return start, end, start_text, end_text
+
+    def summary(self, start=None, end=None):
+        start_day, end_day, start_text, end_text = self._range_bounds(start, end)
+        distance_px = self.db.distance(start_text, end_text)
         distance_m = distance_px / 3779.527
         return {
-            "date": today,
-            "keys": self.db.key_count(today),
-            "clicks": self.db.mouse_event_count(today, "click"),
-            "scrolls": self.db.mouse_event_count(today, "scroll"),
+            "start": start_day,
+            "end": end_day,
+            "date": f"{start_day} 至 {end_day}" if start_day != end_day else start_day,
+            "keys": self.db.key_count_range(start_text, end_text),
+            "clicks": self.db.mouse_event_count_range(start_text, end_text, "click"),
+            "scrolls": self.db.mouse_event_count_range(start_text, end_text, "scroll"),
             "distance_px": round(distance_px, 1),
             "distance_m": round(distance_m, 3),
             "paused": self.paused,
             "autostart_enabled": autostart.is_enabled(),
             "started_at": self.started_at.strftime("%Y-%m-%d %H:%M:%S"),
             "last_updated": now_text(),
-            "top_keys": self.db.key_counts(start, end, limit=10),
-            "mouse": self.db.mouse_counts(start, end),
+            "top_keys": self.db.key_counts(start_text, end_text, limit=10),
+            "mouse": self.db.mouse_counts(start_text, end_text),
         }
 
-    def heatmap(self, day=None):
-        today = date.today().isoformat()
-        day = day or today
-        try:
-            date.fromisoformat(day)
-        except ValueError:
-            day = today
-        start, end = self.db.day_range(day)
-        return {"date": day, "keys": self.db.key_counts(start, end)}
+    def heatmap(self, start=None, end=None):
+        start_day, end_day, start_text, end_text = self._range_bounds(start, end)
+        return {
+            "start": start_day,
+            "end": end_day,
+            "date": f"{start_day} 至 {end_day}" if start_day != end_day else start_day,
+            "keys": self.db.key_counts(start_text, end_text),
+        }
 
     def export_csv(self):
         buffer = io.StringIO()
@@ -158,15 +179,24 @@ class Tracker:
         total = sum(counts.values())
         return render_heatmap(counts, day, total)
 
-    def trend(self):
-        today = date.today().isoformat()
-        start, end = self.db.day_range(today)
-        hours = [{"hour": index, "keys": 0, "clicks": 0, "distance": 0} for index in range(24)]
-        for row in self.db.hourly_keys(start, end):
-            hours[int(row["hour"])]["keys"] = row["count"]
-        for row in self.db.hourly_mouse_events(start, end):
-            hours[int(row["hour"])]["clicks"] = row["count"]
-        for row in self.db.hourly_distance(start, end):
-            hours[int(row["hour"])]["distance"] = round(row["distance"], 1)
-        return {"date": today, "hours": hours}
+    def trend(self, start=None, end=None):
+        start_day, end_day, start_text, end_text = self._range_bounds(start, end)
+        if start_day == end_day and start_day != "全部":
+            hours = [{"hour": index, "keys": 0, "clicks": 0, "distance": 0} for index in range(24)]
+            for row in self.db.hourly_keys(start_text, end_text):
+                hours[int(row["hour"])]["keys"] = row["count"]
+            for row in self.db.hourly_mouse_events(start_text, end_text):
+                hours[int(row["hour"])]["clicks"] = row["count"]
+            for row in self.db.hourly_distance(start_text, end_text):
+                hours[int(row["hour"])]["distance"] = round(row["distance"], 1)
+            return {"period": "hour", "start": start_day, "end": end_day, "hours": hours}
 
+        by_day = {}
+        for row in self.db.daily_keys(start_text, end_text):
+            by_day.setdefault(row["day"], {"keys": 0, "clicks": 0, "distance": 0})["keys"] = row["count"]
+        for row in self.db.daily_mouse_events(start_text, end_text):
+            by_day.setdefault(row["day"], {"keys": 0, "clicks": 0, "distance": 0})["clicks"] = row["count"]
+        for row in self.db.daily_distance(start_text, end_text):
+            by_day.setdefault(row["day"], {"keys": 0, "clicks": 0, "distance": 0})["distance"] = round(row["distance"], 1)
+        days = [{"day": day, **item} for day, item in sorted(by_day.items())]
+        return {"period": "day", "start": start_day, "end": end_day, "days": days}

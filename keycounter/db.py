@@ -98,8 +98,30 @@ class Database:
             ).fetchone()
             return row["count"]
 
+    def key_count_range(self, start, end):
+        with self._lock:
+            row = self.conn.execute(
+                """
+                SELECT COUNT(*) AS count FROM key_events
+                WHERE pressed_at BETWEEN ? AND ?
+                """,
+                (start, end),
+            ).fetchone()
+            return row["count"]
+
     def mouse_event_count(self, day, event_type):
         start, end = self.day_range(day)
+        with self._lock:
+            row = self.conn.execute(
+                """
+                SELECT COUNT(*) AS count FROM mouse_events
+                WHERE pressed_at BETWEEN ? AND ? AND event_type = ?
+                """,
+                (start, end, event_type),
+            ).fetchone()
+            return row["count"]
+
+    def mouse_event_count_range(self, start, end, event_type):
         with self._lock:
             row = self.conn.execute(
                 """
@@ -181,6 +203,49 @@ class Database:
                 FROM mouse_moves
                 WHERE sampled_at BETWEEN ? AND ?
                 GROUP BY substr(sampled_at, 12, 2)
+                """,
+                (start, end),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def daily_keys(self, start, end):
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT substr(pressed_at, 1, 10) AS day, COUNT(*) AS count
+                FROM key_events
+                WHERE pressed_at BETWEEN ? AND ?
+                GROUP BY substr(pressed_at, 1, 10)
+                ORDER BY day
+                """,
+                (start, end),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def daily_mouse_events(self, start, end):
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT substr(pressed_at, 1, 10) AS day, COUNT(*) AS count
+                FROM mouse_events
+                WHERE pressed_at BETWEEN ? AND ?
+                GROUP BY substr(pressed_at, 1, 10)
+                ORDER BY day
+                """,
+                (start, end),
+            ).fetchall()
+            return [dict(row) for row in rows]
+
+    def daily_distance(self, start, end):
+        with self._lock:
+            rows = self.conn.execute(
+                """
+                SELECT substr(sampled_at, 1, 10) AS day,
+                       COALESCE(SUM(distance_px), 0) AS distance
+                FROM mouse_moves
+                WHERE sampled_at BETWEEN ? AND ?
+                GROUP BY substr(sampled_at, 1, 10)
+                ORDER BY day
                 """,
                 (start, end),
             ).fetchall()

@@ -35,6 +35,19 @@
           <option value="exit">直接退出</option>
         </select>
       </label>
+      <label class="range-field">范围
+        <select id="range-select">
+          <option value="today">今日</option>
+          <option value="yesterday">昨日</option>
+          <option value="7d">近 7 天</option>
+          <option value="30d">近 30 天</option>
+          <option value="month">本月</option>
+          <option value="all">全部时间</option>
+          <option value="custom">自定义</option>
+        </select>
+        <input type="date" id="range-start" class="range-date" hidden>
+        <input type="date" id="range-end" class="range-date" hidden>
+      </label>
       <a class="action-button" href="/api/export?format=csv">导出数据</a>
       <a class="action-button" href="/api/export/heatmap.png">热力图 PNG</a>
       <button id="autostart-button" type="button">开启开机自启</button>
@@ -45,7 +58,7 @@
 
   <main>
     <section class="stat-strip" aria-label="今日统计">
-      <div class="stat-item"><strong id="stat-keys">--</strong><span>今日按键</span></div>
+      <div class="stat-item"><strong id="stat-keys">--</strong><span>按键次数</span></div>
       <div class="stat-item"><strong id="stat-clicks">--</strong><span>鼠标点击</span></div>
       <div class="stat-item"><strong id="stat-scrolls">--</strong><span>滚轮次数</span></div>
       <div class="stat-item"><strong id="stat-distance">--</strong><span>移动距离</span></div>

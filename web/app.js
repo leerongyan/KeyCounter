@@ -116,6 +116,7 @@ const state = {
   paused: false,
   summary: null,
   unit: localStorage.getItem("distance-unit") || "auto",
+  range: { mode: "today", start: "", end: "" },
 };
 
 const statusText = document.getElementById("status-text");
@@ -123,6 +124,9 @@ const liveIndicator = document.getElementById("live-indicator");
 const pauseButton = document.getElementById("pause-button");
 const autostartButton = document.getElementById("autostart-button");
 const unitSelect = document.getElementById("distance-unit");
+const rangeSelect = document.getElementById("range-select");
+const rangeStart = document.getElementById("range-start");
+const rangeEnd = document.getElementById("range-end");
 const closeActionSelect = document.getElementById("close-action");
 const keyboardEl = document.getElementById("keyboard");
 const keyboardHolder = document.getElementById("keyboard-holder");
@@ -284,7 +288,7 @@ function renderSummary(summary) {
 
   renderPause(summary.paused);
   renderAutostart(summary.autostart_enabled);
-  statusText.textContent = summary.paused ? "统计已暂停" : `统计中 · ${new Date().toLocaleTimeString("zh-CN")}`;
+  statusText.textContent = summary.paused ? "统计已暂停" : `统计中 · ${summary.date} · ${new Date().toLocaleTimeString("zh-CN")}`;
 }
 
 function renderHeatmap(payload) {
@@ -307,29 +311,33 @@ function renderHeatmap(payload) {
 }
 
 function renderTrend(payload) {
-  const hours = payload.hours || [];
-  const totalKeys = hours.reduce((sum, item) => sum + item.keys, 0);
-  const totalClicks = hours.reduce((sum, item) => sum + item.clicks, 0);
-  const active = hours.reduce((best, item) => {
-    return item.keys + item.clicks > best.keys + best.clicks ? item : best;
-  }, hours[0] || { hour: 0, keys: 0, clicks: 0 });
+  const isDay = payload.period === "day";
+  const items = isDay ? (payload.days || []) : (payload.hours || []);
+  const totalKeys = items.reduce((sum, item) => sum + (item.keys || 0), 0);
+  const totalClicks = items.reduce((sum, item) => sum + (item.clicks || 0), 0);
+  const active = items.reduce((best, item) => {
+    return (item.keys || 0) + (item.clicks || 0) > (best.keys || 0) + (best.clicks || 0) ? item : best;
+  }, items[0] || { keys: 0, clicks: 0, hour: 0, day: "" });
+  const activeLabel = isDay ? String(active.day || "").slice(5) : `${String(active.hour).padStart(2, "0")}:00`;
   const summaryEl = document.getElementById("trend-summary");
   if (summaryEl) {
-    summaryEl.textContent = `今日按键 ${formatNumber(totalKeys)} · 点击 ${formatNumber(totalClicks)} · 最活跃 ${String(active.hour).padStart(2, "0")}:00`;
+    summaryEl.textContent = `${isDay ? "范围内" : "今日"}按键 ${formatNumber(totalKeys)} · 点击 ${formatNumber(totalClicks)} · 最活跃 ${activeLabel}`;
   }
 
-  const maxValue = Math.max(1, ...hours.map((item) => Math.max(item.keys, item.clicks)));
+  const maxValue = Math.max(1, ...items.map((item) => Math.max(item.keys || 0, item.clicks || 0)));
   const chart = document.getElementById("trend-chart");
-  const columns = hours.map((item) => {
-    const keysHeight = Math.max(item.keys > 0 ? 2 : 0, (item.keys / maxValue) * 100);
-    const clicksHeight = Math.max(item.clicks > 0 ? 2 : 0, (item.clicks / maxValue) * 100);
+  const columns = items.map((item) => {
+    const keysHeight = Math.max((item.keys || 0) > 0 ? 2 : 0, ((item.keys || 0) / maxValue) * 100);
+    const clicksHeight = Math.max((item.clicks || 0) > 0 ? 2 : 0, ((item.clicks || 0) / maxValue) * 100);
+    const label = isDay ? String(item.day || "").slice(5) : String(item.hour).padStart(2, "0");
+    const title = isDay ? `${item.day}  按键 ${item.keys || 0} 次，点击 ${item.clicks || 0} 次` : `${item.hour}:00  按键 ${item.keys || 0} 次，点击 ${item.clicks || 0} 次`;
     return `
-      <div class="trend-col" title="${item.hour}:00  按键 ${item.keys} 次，点击 ${item.clicks} 次">
+      <div class="trend-col" title="${title}">
         <div class="trend-bars">
           <div class="trend-bar keys" style="height:${keysHeight}%"></div>
           <div class="trend-bar clicks" style="height:${clicksHeight}%"></div>
         </div>
-        <span class="trend-hour">${String(item.hour).padStart(2, "0")}</span>
+        <span class="trend-hour">${label}</span>
       </div>
     `;
   }).join("");
@@ -348,9 +356,9 @@ function renderTrend(payload) {
 async function refresh() {
   try {
     const [summary, heatmap, trend, settings] = await Promise.all([
-      fetchJSON("/api/summary"),
-      fetchJSON("/api/heatmap"),
-      fetchJSON("/api/trend"),
+      fetchJSON(buildApiUrl("/api/summary")),
+      fetchJSON(buildApiUrl("/api/heatmap")),
+      fetchJSON(buildApiUrl("/api/trend")),
       fetchJSON("/api/settings"),
     ]);
     renderSummary(summary);
@@ -403,6 +411,26 @@ window.addEventListener("resize", () => requestAnimationFrame(fitKeyboard));
 if (typeof ResizeObserver !== "undefined") {
   new ResizeObserver(() => requestAnimationFrame(fitKeyboard)).observe(keyboardStage);
 }
+
+rangeSelect.value = state.range.mode;
+updateRangeInputs();
+rangeSelect.addEventListener("change", () => {
+  state.range.mode = rangeSelect.value;
+  updateRangeInputs();
+  refresh();
+});
+rangeStart.addEventListener("change", () => {
+  state.range.mode = "custom";
+  rangeSelect.value = "custom";
+  updateRangeInputs();
+  refresh();
+});
+rangeEnd.addEventListener("change", () => {
+  state.range.mode = "custom";
+  rangeSelect.value = "custom";
+  updateRangeInputs();
+  refresh();
+});
 
 buildKeyboard();
 requestAnimationFrame(fitKeyboard);
