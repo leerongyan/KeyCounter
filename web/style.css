@@ -197,7 +197,7 @@ main {
 
 .stat-item strong {
   overflow: hidden;
-  font-size: 20px;
+  font-size: clamp(18px, 2.2vw, 34px);
   line-height: 1.1;
   color: #13201b;
   text-overflow: ellipsis;
@@ -212,7 +212,7 @@ main {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(260px, 22vw, 380px);
+  grid-template-columns: minmax(0, 1fr) clamp(270px, 26vw, 480px);
   gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
@@ -461,7 +461,7 @@ main {
 }
 
 .trend-panel {
-  flex: 0 0 142px;
+  flex: 0 0 clamp(130px, 17vh, 230px);
   padding: 8px 14px 10px;
 }
 

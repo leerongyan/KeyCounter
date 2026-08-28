@@ -186,7 +186,7 @@ function fitKeyboard() {
   const naturalH = keyboardEl.scrollHeight || 300;
   const availableW = keyboardStage.clientWidth || 620;
   const availableH = keyboardStage.clientHeight || 260;
-  const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 2.4));
+  const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 3.2));
   keyboardHolder.style.setProperty("--kb-scale", scale.toFixed(3));
 }
 
@@ -351,6 +351,63 @@ function renderTrend(payload) {
     <div class="trend-columns">${columns}</div>
   `;
 }
+
+function formatDateInput(value) {
+  const d = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDateRange() {
+  const today = formatDateInput(new Date());
+  const mode = state.range.mode;
+  if (mode === "today") return { start: today, end: today };
+  if (mode === "yesterday") {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const day = formatDateInput(d);
+    return { start: day, end: day };
+  }
+  if (mode === "7d") {
+    const d = new Date();
+    d.setDate(d.getDate() - 6);
+    return { start: formatDateInput(d), end: today };
+  }
+  if (mode === "30d") {
+    const d = new Date();
+    d.setDate(d.getDate() - 29);
+    return { start: formatDateInput(d), end: today };
+  }
+  if (mode === "month") {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: formatDateInput(first), end: today };
+  }
+  if (mode === "all") return { start: "all", end: "all" };
+  return { start: rangeStart.value || today, end: rangeEnd.value || today };
+}
+
+function buildApiUrl(path) {
+  const range = getDateRange();
+  const params = [];
+  if (range.start) params.push(`start=${encodeURIComponent(range.start)}`);
+  if (range.end) params.push(`end=${encodeURIComponent(range.end)}`);
+  return params.length ? `${path}?${params.join("&")}` : path;
+}
+
+function updateRangeInputs() {
+  const custom = state.range.mode === "custom";
+  rangeStart.hidden = !custom;
+  rangeEnd.hidden = !custom;
+  if (custom) {
+    const today = formatDateInput(new Date());
+    if (!rangeStart.value) rangeStart.value = today;
+    if (!rangeEnd.value) rangeEnd.value = today;
+  }
+}
+
 
 
 async function refresh() {
