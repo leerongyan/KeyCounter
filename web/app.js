@@ -410,24 +410,44 @@ function updateRangeInputs() {
 
 
 
-async function refresh() {
+async function loadSettings() {
   try {
-    const [summary, heatmap, trend, settings] = await Promise.all([
-      fetchJSON(buildApiUrl("/api/summary")),
-      fetchJSON(buildApiUrl("/api/heatmap")),
-      fetchJSON(buildApiUrl("/api/trend")),
-      fetchJSON("/api/settings"),
-    ]);
-    renderSummary(summary);
-    renderHeatmap(heatmap);
-    renderTrend(trend);
+    const settings = await fetchJSON("/api/settings");
     renderSettings(settings);
   } catch (error) {
+    // Settings can retry on the next refresh; it should not mark the app offline.
+  }
+}
+
+async function refresh() {
+  const results = await Promise.allSettled([
+    fetchJSON(buildApiUrl("/api/summary")),
+    fetchJSON(buildApiUrl("/api/heatmap")),
+    fetchJSON(buildApiUrl("/api/trend")),
+  ]);
+  let coreSuccess = 0;
+  if (results[0].status === "fulfilled") {
+    renderSummary(results[0].value);
+    coreSuccess += 1;
+  }
+  if (results[1].status === "fulfilled") {
+    renderHeatmap(results[1].value);
+    coreSuccess += 1;
+  }
+  if (results[2].status === "fulfilled") {
+    renderTrend(results[2].value);
+    coreSuccess += 1;
+  }
+  if (coreSuccess === 0) {
     statusText.textContent = "无法连接统计服务";
     liveIndicator.classList.add("paused");
     liveIndicator.textContent = "离线";
+  } else {
+    liveIndicator.classList.remove("paused");
+    liveIndicator.textContent = "运行中";
   }
 }
+
 
 pauseButton.addEventListener("click", async () => {
   try {
@@ -489,6 +509,38 @@ rangeEnd.addEventListener("change", () => {
   refresh();
 });
 
+
+function setupPanelLayout() {
+  let draggedPanel = null;
+  const panels = document.querySelectorAll(".panel");
+  panels.forEach((panel) => {
+    panel.draggable = true;
+    panel.addEventListener("dragstart", (event) => {
+      draggedPanel = panel;
+      event.dataTransfer.effectAllowed = "move";
+    });
+    panel.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      panel.classList.add("drag-over");
+    });
+    panel.addEventListener("dragleave", () => panel.classList.remove("drag-over"));
+    panel.addEventListener("drop", (event) => {
+      event.preventDefault();
+      panel.classList.remove("drag-over");
+      if (!draggedPanel || draggedPanel === panel) return;
+      const targetParent = panel.parentNode;
+      targetParent.insertBefore(draggedPanel, panel.nextSibling);
+      draggedPanel = null;
+    });
+    panel.addEventListener("dragend", () => {
+      panels.forEach((item) => item.classList.remove("drag-over"));
+      draggedPanel = null;
+    });
+  });
+}
+
+setupPanelLayout();
+loadSettings();
 buildKeyboard();
 requestAnimationFrame(fitKeyboard);
 refresh();
