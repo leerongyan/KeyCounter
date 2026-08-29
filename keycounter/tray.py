@@ -1,15 +1,61 @@
+import ctypes
 import datetime
+import sys
 from pathlib import Path
 
 from . import autostart
 
 try:
     import pystray
-    from PIL import Image, ImageDraw, ImageFont
     TRAY_AVAILABLE = True
 except ImportError:
     pystray = None
     TRAY_AVAILABLE = False
+
+
+def _icon_path():
+    if getattr(sys, "frozen", False):
+        base = Path(sys._MEIPASS) / "assets"
+    else:
+        base = Path(__file__).resolve().parent / "assets"
+    return base / "icon.ico"
+
+
+def _load_icon_handle(path):
+    """用系统 API 从 .ico 文件加载图标句柄（不经过 PIL）。"""
+    if sys.platform != "win32":
+        return None
+    try:
+        IMAGE_ICON = 1
+        LR_LOADFROMFILE = 0x10
+        handle = ctypes.windll.user32.LoadImageW(
+            None, str(path), IMAGE_ICON, 0, 0, LR_LOADFROMFILE)
+        return handle or None
+    except Exception:
+        return None
+
+
+if TRAY_AVAILABLE:
+
+    class _PreloadedIcon(pystray.Icon):
+        """预加载 .ico 句柄的托盘图标。
+
+        pystray 默认把图标交给 PIL 转换成 .ico 再加载；这里改为直接用
+        系统 LoadImage 从打包好的图标文件加载，启动时完全不需要 PIL。
+        """
+
+        def __init__(self, icon_path, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._icon_path = icon_path
+
+        def _assert_icon_handle(self):
+            if not self._icon_handle:
+                handle = _load_icon_handle(self._icon_path)
+                if handle:
+                    self._icon_handle = handle
+                    return
+            # 图标文件缺失时退回 pystray 原路径（PIL 兜底）
+            super()._assert_icon_handle()
 
 
 class TrayController:
@@ -39,12 +85,8 @@ class TrayController:
             pystray.MenuItem("导出热力图 PNG", self._export_heatmap),
             pystray.MenuItem("退出", self._quit),
         )
-        self.icon = pystray.Icon(
-            "KeyCounter",
-            self._create_image(),
-            "键盘鼠标统计",
-            menu,
-        )
+        self.icon = _PreloadedIcon(
+            _icon_path(), "KeyCounter", True, "键盘鼠标统计", menu)
         self.icon.run_detached()
         return True
 
@@ -90,6 +132,9 @@ class TrayController:
         self.on_quit()
 
     def _create_image(self):
+        # 仅在预加载失败时的兜底路径，正常启动不会加载 PIL
+        from PIL import Image, ImageDraw, ImageFont
+
         image = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
         draw.rounded_rectangle([2, 2, 62, 62], radius=14, fill=(15, 118, 110, 255))

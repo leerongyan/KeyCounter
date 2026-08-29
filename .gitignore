@@ -8,3 +8,5 @@ dist/
 *.spec
 %SystemDrive%/
 dist_new/
+dist_new/
+dist_v3/
