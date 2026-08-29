@@ -1,7 +1,4 @@
 import math
-import queue
-import sys
-import threading
 import time
 from datetime import date, datetime, timedelta
 
@@ -16,43 +13,6 @@ from .heatmap import render_heatmap
 from .keys import normalize_key
 
 
-def _disable_power_throttling():
-    """豁免 Windows 后台进程节流。
-
-    玩全屏游戏时本程序处于后台，系统可能降低其 CPU 调度优先级，
-    导致键盘钩子回调超时、按键丢失。此处显式关闭对本进程的节流。
-    """
-    if sys.platform != "win32":
-        return
-    try:
-        import ctypes
-
-        class PowerThrottlingState(ctypes.Structure):
-            _fields_ = [
-                ("Version", ctypes.c_ulong),
-                ("ControlMask", ctypes.c_ulong),
-                ("StateMask", ctypes.c_ulong),
-            ]
-
-        PROCESS_POWER_THROTTLING_EXECUTION_SPEED = 0x1
-        PROCESS_POWER_THROTTLING_CURRENT_VERSION = 1
-        PROCESS_POWER_THROTTLING = 4
-        state = PowerThrottlingState(
-            PROCESS_POWER_THROTTLING_CURRENT_VERSION,
-            PROCESS_POWER_THROTTLING_EXECUTION_SPEED,
-            0,
-        )
-        kernel32 = ctypes.windll.kernel32
-        kernel32.SetProcessInformation(
-            kernel32.GetCurrentProcess(),
-            PROCESS_POWER_THROTTLING,
-            ctypes.byref(state),
-            ctypes.sizeof(state),
-        )
-    except Exception:
-        pass
-
-
 class Tracker:
     def __init__(self, database):
         self.db = database
@@ -62,15 +22,8 @@ class Tracker:
         self._held_keys = set()
         self._keyboard_listener = None
         self._mouse_listener = None
-        # 钩子回调只把事件放进内存队列，由独立线程批量写库，
-        # 避免在系统钩子里做磁盘 I/O（否则游戏等高负载时按键会丢）。
-        self._events = queue.Queue(maxsize=500000)
-        self._stop_writer = threading.Event()
-        self._writer_thread = None
 
     def start(self):
-        self._start_writer()
-        _disable_power_throttling()
         self._keyboard_listener = keyboard.Listener(
             on_press=self._on_key_press,
             on_release=self._on_key_release,
@@ -83,72 +36,15 @@ class Tracker:
         self._keyboard_listener.start()
         self._mouse_listener.start()
 
-    def _start_writer(self):
-        if self._writer_thread is None:
-            self._writer_thread = threading.Thread(
-                target=self._writer_loop,
-                name="kc-db-writer",
-                daemon=True,
-            )
-            self._writer_thread.start()
-
-    def _writer_loop(self):
-        while not self._stop_writer.is_set():
-            batch = []
-            try:
-                batch.append(self._events.get(timeout=0.4))
-                while len(batch) < 500:
-                    batch.append(self._events.get_nowait())
-            except queue.Empty:
-                pass
-            if batch:
-                self._write_batch(batch)
-
-    def _write_batch(self, batch):
-        keys = []
-        mouse_events = []
-        moves = []
-        for kind, payload in batch:
-            if kind == "key":
-                keys.append(payload)
-            elif kind == "mouse":
-                mouse_events.append(payload)
-            else:
-                moves.append(payload)
-        try:
-            self.db.write_events(keys, mouse_events, moves)
-        except Exception:
-            pass
-
-    def _enqueue(self, item):
-        try:
-            self._events.put_nowait(item)
-        except queue.Full:
-            pass
-
     def stop(self):
         for listener in (self._keyboard_listener, self._mouse_listener):
             if listener is not None:
                 listener.stop()
-        self._stop_writer.set()
-        if self._writer_thread is not None:
-            self._writer_thread.join(timeout=3)
-        self._drain_events()
         self.db.close()
-
-    def _drain_events(self):
-        batch = []
-        while True:
-            try:
-                batch.append(self._events.get_nowait())
-            except queue.Empty:
-                break
-        if batch:
-            self._write_batch(batch)
 
     def set_paused(self, paused):
         self.paused = bool(paused)
-        if not paused:
+        if not self.paused:
             self._last_move = None
         self._held_keys = set()
 
@@ -162,7 +58,7 @@ class Tracker:
         if name in self._held_keys:
             return
         self._held_keys.add(name)
-        self._enqueue(("key", (name, now_text())))
+        self.db.record_key(name)
 
     def _on_key_release(self, key):
         try:
@@ -182,7 +78,7 @@ class Tracker:
             elapsed = now - last_time
             distance = math.hypot(x - last_x, y - last_y)
             if 0.02 <= elapsed <= 5.0 and distance >= 2.0:
-                self._enqueue(("move", (x, y, distance, now_text())))
+                self.db.record_move(x, y, distance)
         self._last_move = (x, y, now)
 
     def _on_mouse_click(self, x, y, button, pressed):
@@ -193,15 +89,15 @@ class Tracker:
         except Exception:
             name = "unknown"
         if name in ("unknown", "x1", "x2", "side"):
-            self._enqueue(("mouse", ("click", "side", x, y, now_text())))
+            self.db.record_mouse("click", "side", x, y)
         else:
-            self._enqueue(("mouse", ("click", name, x, y, now_text())))
+            self.db.record_mouse("click", name, x, y)
 
     def _on_mouse_scroll(self, x, y, dx, dy):
         if self.paused:
             return
         direction = "up" if dy < 0 else "down"
-        self._enqueue(("mouse", ("scroll", direction, x, y, now_text())))
+        self.db.record_mouse("scroll", direction, x, y)
 
     @staticmethod
     def _range_bounds(start, end):
