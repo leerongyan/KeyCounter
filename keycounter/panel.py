@@ -93,7 +93,7 @@ def create_window(url, width=1280, height=860):
         url=url,
         width=width,
         height=height,
-        min_size=(900, 620),
+        min_size=(720, 520),
         resizable=True,
     )
     _window.events.closing += lambda: _handle_closing(_window)

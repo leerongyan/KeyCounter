@@ -182,8 +182,8 @@ function buildKeyboard() {
 
 function fitKeyboard() {
   if (!keyboardEl || !keyboardHolder || !keyboardStage) return;
-  const naturalW = keyboardEl.scrollWidth || 940;
-  const naturalH = keyboardEl.scrollHeight || 300;
+  const naturalW = keyboardEl.scrollWidth || 1160;
+  const naturalH = keyboardEl.scrollHeight || 270;
   const availableW = keyboardStage.clientWidth || 620;
   const availableH = keyboardStage.clientHeight || 260;
   const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 3.2));

@@ -13,6 +13,11 @@ body {
   letter-spacing: 0;
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+}
+
 button,
 select {
   font: inherit;
@@ -175,9 +180,9 @@ main {
   flex: 1 1 auto;
   flex-direction: column;
   gap: 10px;
-  min-height: 260px;
+  min-height: 0;
   padding: 12px 16px 14px;
-  overflow: hidden;
+  overflow: auto;
 }
 
 .stat-strip {
@@ -221,11 +226,13 @@ main {
   grid-template-columns: minmax(0, 1fr) clamp(250px, 22vw, 400px);
   gap: 10px;
   flex: 1 1 auto;
-  min-height: 210px;
+  min-height: 250px;
 }
 
 .panel {
   min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
   resize: both;
   overflow: auto;
   border: 1px solid #c8d2d6;
@@ -236,7 +243,7 @@ main {
 }
 
 .heatmap-panel {
-  min-height: 250px;
+  min-height: 220px;
   padding: 8px 10px 6px;
 }
 
@@ -279,7 +286,7 @@ main {
 .keyboard-stage {
   position: relative;
   flex: 1 1 auto;
-  min-height: 260px;
+  min-height: 120px;
   overflow: hidden;
 }
 
@@ -287,8 +294,8 @@ main {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 1160px;
-  height: 340px;
+  width: max-content;
+  height: max-content;
   transform: translate(-50%, -50%) scale(var(--kb-scale, 1));
   transform-origin: center center;
 }
@@ -378,7 +385,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 260px;
+  min-height: 0;
 }
 
 .mouse-panel,
@@ -389,13 +396,13 @@ main {
 }
 
 .mouse-panel {
-  flex: 0 0 42%;
-  min-height: 130px;
+  flex: 0 1 42%;
+  min-height: 120px;
 }
 
 .top-panel {
   flex: 1 1 58%;
-  min-height: 130px;
+  min-height: 120px;
 }
 
 .mouse-list {
@@ -409,7 +416,6 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 27px;
   gap: 8px;
   min-height: 29px;
   border-bottom: 1px solid #e5eaec;
@@ -472,7 +478,8 @@ main {
 }
 
 .trend-panel {
-  flex: 0 0 clamp(165px, 22vh, 280px);
+  flex: 0 1 clamp(150px, 20vh, 260px);
+  min-height: 110px;
   padding: 8px 14px 10px;
 }
 
@@ -526,7 +533,6 @@ main {
 }
 
 .trend-col {
-  height: 100%;
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
@@ -608,7 +614,7 @@ main {
   }
 
   .keyboard-stage {
-    min-height: 420px;
+    min-height: 260px;
   }
 
   .side-stack {
