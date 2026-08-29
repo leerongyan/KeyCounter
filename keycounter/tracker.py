@@ -19,12 +19,15 @@ class Tracker:
         self.paused = False
         self.started_at = datetime.now()
         self._last_move = None
-        self._last_key_press = {}
+        self._held_keys = set()
         self._keyboard_listener = None
         self._mouse_listener = None
 
     def start(self):
-        self._keyboard_listener = keyboard.Listener(on_press=self._on_key_press)
+        self._keyboard_listener = keyboard.Listener(
+            on_press=self._on_key_press,
+            on_release=self._on_key_release,
+        )
         self._mouse_listener = mouse.Listener(
             on_move=self._on_mouse_move,
             on_click=self._on_mouse_click,
@@ -43,7 +46,7 @@ class Tracker:
         self.paused = bool(paused)
         if not self.paused:
             self._last_move = None
-        self._last_key_press = {}
+        self._held_keys = set()
 
     def _on_key_press(self, key):
         if self.paused:
@@ -52,12 +55,9 @@ class Tracker:
             name = normalize_key(key)
         except Exception:
             name = "unknown"
-        now = time.monotonic()
-        last = self._last_key_press.get(name)
-        if last is not None and now - last < 0.08:
-            self._last_key_press[name] = now
+        if name in self._held_keys:
             return
-        self._last_key_press[name] = now
+        self._held_keys.add(name)
         self.db.record_key(name)
 
     def _on_key_release(self, key):
@@ -65,7 +65,7 @@ class Tracker:
             name = normalize_key(key)
         except Exception:
             return
-        self._last_key_press.pop(name, None)
+        self._held_keys.discard(name)
 
     def _on_mouse_move(self, x, y):
         if self.paused:
