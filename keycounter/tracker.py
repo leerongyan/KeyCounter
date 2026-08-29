@@ -137,7 +137,7 @@ class Tracker:
             "autostart_enabled": autostart.is_enabled(),
             "started_at": self.started_at.strftime("%Y-%m-%d %H:%M:%S"),
             "last_updated": now_text(),
-            "top_keys": self.db.key_counts(start_text, end_text, limit=10),
+            "top_keys": self.db.key_counts(start_text, end_text, limit=15),
             "mouse": self.db.mouse_counts(start_text, end_text),
         }
 

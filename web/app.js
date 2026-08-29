@@ -131,6 +131,16 @@ const closeActionSelect = document.getElementById("close-action");
 const keyboardEl = document.getElementById("keyboard");
 const keyboardHolder = document.getElementById("keyboard-holder");
 const keyboardStage = document.querySelector(".keyboard-stage");
+const mainEl = document.querySelector("main");
+const workspaceEl = document.querySelector(".workspace");
+const statStripEl = document.querySelector(".stat-strip");
+const trendPanelEl = document.querySelector(".trend-panel");
+const heatmapPanelEl = document.querySelector(".heatmap-panel");
+const mousePanelEl = document.querySelector(".mouse-panel");
+// 与 style.css 中 .keyboard-stage 的 aspect-ratio 保持一致（键盘自然宽高比）
+const KEYBOARD_RATIO = 1160 / 270;
+// 单列紧凑布局断点，与 style.css 的 @media (max-width: 900px) 保持一致
+const COMPACT_BREAKPOINT = 900;
 
 function createKeyButton(key) {
   const el = document.createElement("div");
@@ -188,6 +198,49 @@ function fitKeyboard() {
   const availableH = keyboardStage.clientHeight || 260;
   const scale = Math.max(0.2, Math.min(availableW / naturalW, availableH / naturalH, 3.2));
   keyboardHolder.style.setProperty("--kb-scale", scale.toFixed(3));
+}
+
+let lastWorkspaceHeight = 0;
+
+function fitWorkspace() {
+  if (!workspaceEl || !heatmapPanelEl || !mainEl) return;
+  if (window.innerWidth <= COMPACT_BREAKPOINT) {
+    if (lastWorkspaceHeight !== 0) {
+      workspaceEl.style.height = "";
+      lastWorkspaceHeight = 0;
+      if (statStripEl) requestAnimationFrame(fitKeyboard);
+    }
+    return;
+  }
+  const mainStyles = getComputedStyle(mainEl);
+  const mainInner = mainEl.clientHeight
+    - parseFloat(mainStyles.paddingTop || 0)
+    - parseFloat(mainStyles.paddingBottom || 0);
+  const gap = 10;
+  const trendReserve = 130;
+  const available = Math.max(
+    mainInner - statStripEl.offsetHeight - 2 * gap - trendReserve,
+    260,
+  );
+  // 键盘按宽度自适应时热力图面板的理想高度 = 键盘高度 + 面板头尾开销
+  const chrome = heatmapPanelEl.offsetHeight - keyboardStage.offsetHeight;
+  const ideal = heatmapPanelEl.clientWidth / KEYBOARD_RATIO + chrome;
+  // 下方留白优先分给趋势图，但保证右栏（鼠标面板 + 最常用按键面板）可用
+  const floor = (mousePanelEl ? mousePanelEl.offsetHeight : 170) + 240;
+  const height = Math.round(
+    Math.min(available, Math.max(ideal, Math.min(floor, ideal + 120))),
+  );
+  if (Math.abs(height - lastWorkspaceHeight) > 0.5) {
+    workspaceEl.style.height = `${height}px`;
+    lastWorkspaceHeight = height;
+  }
+}
+
+function requestRelayout() {
+  requestAnimationFrame(() => {
+    fitWorkspace();
+    fitKeyboard();
+  });
 }
 
 function formatNumber(value) {
@@ -484,9 +537,14 @@ unitSelect.addEventListener("change", () => {
   renderDistance();
 });
 
-window.addEventListener("resize", () => requestAnimationFrame(fitKeyboard));
+window.addEventListener("resize", requestRelayout);
 if (typeof ResizeObserver !== "undefined") {
-  new ResizeObserver(() => requestAnimationFrame(fitKeyboard)).observe(keyboardStage);
+  const layoutObserver = new ResizeObserver(requestRelayout);
+  layoutObserver.observe(keyboardStage);
+  if (mainEl) layoutObserver.observe(mainEl);
+  if (statStripEl) layoutObserver.observe(statStripEl);
+  if (trendPanelEl) layoutObserver.observe(trendPanelEl);
+  if (heatmapPanelEl) layoutObserver.observe(heatmapPanelEl);
 }
 
 rangeSelect.value = state.range.mode;
@@ -542,7 +600,7 @@ function setupPanelLayout() {
 setupPanelLayout();
 loadSettings();
 buildKeyboard();
-requestAnimationFrame(fitKeyboard);
+requestRelayout();
 refresh();
 setInterval(refresh, 1000);
 
