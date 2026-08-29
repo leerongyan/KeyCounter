@@ -1,9 +1,21 @@
 import math
 from io import BytesIO
 
-from PIL import Image, ImageDraw, ImageFont
-
 from .layout import KEYBOARD_ROWS, NAV_KEYS, NUMPAD_KEYS
+
+# PIL 体积较大，首次渲染热力图 PNG 时才导入，降低常驻内存
+Image = None
+ImageDraw = None
+ImageFont = None
+
+
+def _load_pil():
+    global Image, ImageDraw, ImageFont
+    from PIL import Image as pil_image
+    from PIL import ImageDraw as pil_draw
+    from PIL import ImageFont as pil_font
+
+    Image, ImageDraw, ImageFont = pil_image, pil_draw, pil_font
 
 KEY_W = 50
 KEY_H = 42
@@ -40,6 +52,8 @@ def _count_for(key_id, counts):
 
 
 def render_heatmap(counts, day, total_keys):
+    if Image is None:
+        _load_pil()
     max_count = max(counts.values(), default=1)
     main_width = int(max(sum(width for _, _, width in row) for row in KEYBOARD_ROWS) * KEY_W + 13 * GAP)
     nav_width = 3 * KEY_W + 2 * GAP

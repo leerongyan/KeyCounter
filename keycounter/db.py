@@ -86,6 +86,33 @@ class Database:
             )
             self.conn.commit()
 
+    def write_events(self, keys=(), mouse_events=(), moves=()):
+        """批量写入事件并只提交一次，供采集线程的批量落库使用。"""
+        with self._lock:
+            if keys:
+                self.conn.executemany(
+                    "INSERT INTO key_events (key_name, pressed_at) VALUES (?, ?)",
+                    keys,
+                )
+            if mouse_events:
+                self.conn.executemany(
+                    """
+                    INSERT INTO mouse_events (event_type, button, x, y, pressed_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    mouse_events,
+                )
+            if moves:
+                self.conn.executemany(
+                    """
+                    INSERT INTO mouse_moves (x, y, distance_px, sampled_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    moves,
+                )
+            if keys or mouse_events or moves:
+                self.conn.commit()
+
     def key_count(self, day):
         start, end = self.day_range(day)
         with self._lock:
