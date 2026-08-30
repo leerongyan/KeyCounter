@@ -11,3 +11,5 @@ dist_new/
 dist_new/
 dist_v3/
 dist_v4/
+native/target/
+native/test_data/
