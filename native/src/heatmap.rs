@@ -137,6 +137,21 @@ fn count_for(counts: &HashMap<String, i64>, key_id: &str) -> i64 {
 struct Canvas {
     pixmap: Pixmap,
     font: Option<FontArc>,
+    bold_font: Option<FontArc>,
+}
+
+fn load_bold_font() -> Option<FontArc> {
+    for p in [
+        "C:/Windows/Fonts/msyhbd.ttc",
+        "C:/Windows/Fonts/simhei.ttf",
+    ] {
+        if let Ok(bytes) = std::fs::read(p) {
+            if let Ok(font) = FontArc::try_from_vec(bytes) {
+                return Some(font);
+            }
+        }
+    }
+    None
 }
 
 impl Canvas {
@@ -165,10 +180,24 @@ impl Canvas {
         self.pixmap.fill_path(&path, &paint, FillRule::Winding, Transform::identity(), None);
     }
 
-    fn draw_text(&mut self, text: &str, x: f32, y: f32, px: f32, color: [u8; 3], center: bool) {
+    fn draw_text(
+        &mut self,
+        text: &str,
+        x: f32,
+        y: f32,
+        px: f32,
+        color: [u8; 3],
+        center: bool,
+        bold: bool,
+    ) {
         use ab_glyph::{Font as _, Glyph as AbGlyph};
 
-        let Some(font) = self.font.as_ref() else { return };
+        let font = if bold {
+            self.bold_font.as_ref().or(self.font.as_ref())
+        } else {
+            self.font.as_ref()
+        };
+        let Some(font) = font else { return };
         let scaled = PxScaleFont {
             font: font.clone(),
             scale: PxScale::from(px),
@@ -246,16 +275,18 @@ pub fn render_heatmap(counts: &HashMap<String, i64>, day: &str, total_keys: i64)
     let mut canvas = Canvas {
         pixmap: Pixmap::new(canvas_w as u32, canvas_h as u32)?,
         font: load_font(),
+        bold_font: load_bold_font(),
     };
     canvas.fill_rect(0.0, 0.0, canvas_w, canvas_h, [237, 241, 243]);
 
-    canvas.draw_text("KeyCounter 键盘热力图", PAD, PAD, 26.0, [22, 33, 29], false);
+    canvas.draw_text("KeyCounter 键盘热力图", PAD, PAD, 26.0, [22, 33, 29], false, false);
     canvas.draw_text(
         &format!("{day}  按键总数 {total_keys}"),
         PAD,
         PAD + 36.0,
         14.0,
         [90, 104, 98],
+        false,
         false,
     );
 
@@ -277,7 +308,7 @@ pub fn render_heatmap(counts: &HashMap<String, i64>, day: &str, total_keys: i64)
             let cell_w = (width * KEY_W + (width - 1.0) * GAP).round();
             let count = count_for(counts, key_id);
             canvas.key_rect(x, y, cell_w, KEY_H, flat_color(ratio_of(count)));
-            canvas.draw_text(label, x + cell_w / 2.0, y + KEY_H / 2.0, 12.0, [30, 45, 39], true);
+            canvas.draw_text(label, x + cell_w / 2.0, y + KEY_H / 2.0, 12.0, [30, 45, 39], true, false);
             x += cell_w + GAP;
         }
     }
@@ -288,7 +319,7 @@ pub fn render_heatmap(counts: &HashMap<String, i64>, day: &str, total_keys: i64)
         let y = key_y0 + (*row - 1) as f32 * (KEY_H + GAP);
         let count = count_for(counts, key_id);
         canvas.key_rect(x, y, KEY_W, KEY_H, flat_color(ratio_of(count)));
-        canvas.draw_text(label, x + KEY_W / 2.0, y + KEY_H / 2.0, 12.0, [30, 45, 39], true);
+        canvas.draw_text(label, x + KEY_W / 2.0, y + KEY_H / 2.0, 12.0, [30, 45, 39], true, false);
     }
     // 小键盘区
     let num_x = nav_x + nav_width + 14.0;
@@ -299,30 +330,55 @@ pub fn render_heatmap(counts: &HashMap<String, i64>, day: &str, total_keys: i64)
         let y = key_y0 + (*row - 1) as f32 * (KEY_H + GAP);
         let count = count_for(counts, key_id);
         canvas.key_rect(x, y, cell_w, cell_h, flat_color(ratio_of(count)));
-        canvas.draw_text(label, x + cell_w / 2.0, y + cell_h / 2.0, 12.0, [30, 45, 39], true);
+        canvas.draw_text(label, x + cell_w / 2.0, y + cell_h / 2.0, 12.0, [30, 45, 39], true, false);
     }
 
     // 图例
     let legend_y = PAD + title_height + 6.0 * KEY_H + 5.0 * GAP + 8.0;
-    canvas.draw_text("少", PAD, legend_y, 12.0, [90, 104, 98], false);
+    canvas.draw_text("少", PAD, legend_y, 12.0, [90, 104, 98], false, false);
     for index in 0..21 {
         let left = PAD + 28.0 + index as f32 * 5.0;
         canvas.fill_rect(left, legend_y + 2.0, 5.0, 12.0, flat_color(index as f64 / 20.0));
     }
-    canvas.draw_text("多", PAD + 28.0 + 21.0 * 5.0 + 8.0, legend_y, 12.0, [90, 104, 98], false);
+    canvas.draw_text("多", PAD + 28.0 + 21.0 * 5.0 + 8.0, legend_y, 12.0, [90, 104, 98], false, false);
 
-    let pm = canvas.pixmap;
-    pm.encode_png().ok()
+    canvas.pixmap.encode_png().ok()
 }
 
-/// 托盘图标：64×64 圆角青色方块 + 白色 KC（与 Python 版一致）。
+/// 托盘图标：立体键帽造型（青色渐变顶面 + 侧壁 + 高光 + 大写 K），
+/// 在托盘 16px 小尺寸下依然清晰可辨。
 pub fn tray_icon_rgba() -> Option<(Vec<u8>, u32, u32)> {
     let mut canvas = Canvas {
         pixmap: Pixmap::new(64, 64)?,
         font: load_font(),
+        bold_font: load_bold_font(),
     };
-    canvas.fill_round_rect(2.0, 2.0, 60.0, 60.0, [15, 118, 110]);
-    canvas.draw_text("KC", 32.0, 31.0, 24.0, [255, 255, 255], true);
-    let pm = canvas.pixmap;
-    Some((pm.data().to_vec(), pm.width(), pm.height()))
+
+    // 底部侧壁（深青），比顶面大且下移，形成厚度
+    canvas.fill_round_rect(6.0, 10.0, 52.0, 50.0, [8, 74, 66]);
+
+    // 键帽顶面：垂直渐变（上亮下深）
+    let Some(path) = round_rect_path(4.0, 5.0, 52.0, 47.0, 13.0) else {
+        return None;
+    };
+    let mut paint = Paint::default();
+    paint.anti_alias = true;
+    paint.shader = tiny_skia::LinearGradient::new(
+        tiny_skia::Point::from_xy(30.0, 5.0),
+        tiny_skia::Point::from_xy(30.0, 52.0),
+        vec![
+            tiny_skia::GradientStop::new(0.0, tiny_skia::Color::from_rgba8(45, 212, 191, 255)),
+            tiny_skia::GradientStop::new(1.0, tiny_skia::Color::from_rgba8(13, 148, 136, 255)),
+        ],
+        tiny_skia::SpreadMode::Pad,
+        Transform::identity(),
+    )?;
+    canvas
+        .pixmap
+        .fill_path(&path, &paint, FillRule::Winding, Transform::identity(), None);
+
+    // 顶部高光：弱化的亮条，体现键帽立体感
+    canvas.fill_round_rect(11.0, 10.0, 38.0, 9.0, [126, 224, 211]);
+
+    Some((canvas.pixmap.data().to_vec(), canvas.pixmap.width(), canvas.pixmap.height()))
 }
