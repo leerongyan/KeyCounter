@@ -7,8 +7,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use crossbeam_channel::Sender;
-use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
-use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GetMessageW, PostThreadMessageW, SetWindowsHookExW, UnhookWindowsHookEx,
@@ -142,45 +141,69 @@ unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) 
     CallNextHookEx(None, code, wparam, lparam)
 }
 
-/// 启动钩子线程（内部消息泵），返回用于退出的句柄。
+/// 启动钩子：键盘与鼠标各用独立线程 + 独立消息泵。
+///
+/// 两者共用一个线程时，鼠标事件的通知（高频）会占住该线程的消息队列，
+/// 键盘钩子通知排在队尾极易超过系统低级钩子超时（Win11 会静默绕过超时的
+/// 键盘钩子），表现为“键盘永远不计数而鼠标正常”。
 pub fn start(tx: Sender<Event>) -> HookStop {
     let _ = EVENT_TX.set(tx);
     let _ = HELD_KEYS.set(Mutex::new(HashSet::new()));
     let _ = LAST_MOVE.set(Mutex::new(None));
 
     let (id_tx, id_rx) = mpsc::channel();
+    let (id_tx2, id_rx2) = mpsc::channel();
+
     std::thread::Builder::new()
-        .name("hooks".into())
+        .name("hooks-keyboard".into())
         .spawn(move || unsafe {
-            let hmodule = GetModuleHandleW(None).unwrap_or_default();
-            let hinstance: windows::Win32::Foundation::HINSTANCE = hmodule.into();
-            let kb = SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), hinstance, 0);
-            let ms = SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), hinstance, 0);
-            if let (Ok(kb), Ok(ms)) = (kb, ms) {
-                let _ = id_tx.send(GetCurrentThreadId());
-                let mut msg = MSG::default();
-                // GetMessageW 返回 -1 表示错误，0 表示 WM_QUIT
-                while GetMessageW(&mut msg, None, 0, 0).0 > 0 {}
-                let _ = UnhookWindowsHookEx(kb);
-                let _ = UnhookWindowsHookEx(ms);
+            match SetWindowsHookExW(WH_KEYBOARD_LL, Some(keyboard_proc), HINSTANCE::default(), 0) {
+                Ok(kb) => {
+                    let _ = id_tx.send(GetCurrentThreadId());
+                    let mut msg = MSG::default();
+                    // GetMessageW 返回 -1 表示错误，0 表示 WM_QUIT
+                    while GetMessageW(&mut msg, None, 0, 0).0 > 0 {}
+                    let _ = UnhookWindowsHookEx(kb);
+                }
+                Err(e) => {
+                    }
             }
         })
-        .expect("spawn hook thread");
+        .expect("spawn keyboard hook thread");
 
-    // 等待钩子线程就绪并拿到线程 id（毫秒级）
+    std::thread::Builder::new()
+        .name("hooks-mouse".into())
+        .spawn(move || unsafe {
+            match SetWindowsHookExW(WH_MOUSE_LL, Some(mouse_proc), HINSTANCE::default(), 0) {
+                Ok(ms) => {
+                    let _ = id_tx2.send(GetCurrentThreadId());
+                    let mut msg = MSG::default();
+                    while GetMessageW(&mut msg, None, 0, 0).0 > 0 {}
+                    let _ = UnhookWindowsHookEx(ms);
+                }
+                Err(e) => {
+                    }
+            }
+        })
+        .expect("spawn mouse hook thread");
+
+    // 等待两个钩子线程就绪并拿到线程 id（毫秒级）
     let thread_id = id_rx.recv_timeout(std::time::Duration::from_secs(2)).ok();
-    HookStop { thread_id }
+    let thread_id2 = id_rx2.recv_timeout(std::time::Duration::from_secs(2)).ok();
+    HookStop {
+        thread_ids: [thread_id, thread_id2],
+    }
 }
 
 pub struct HookStop {
-    thread_id: Option<u32>,
+    thread_ids: [Option<u32>; 2],
 }
 
 impl HookStop {
     pub fn stop(&self) {
-        if let Some(id) = self.thread_id {
+        for id in self.thread_ids.iter().flatten() {
             unsafe {
-                let _ = PostThreadMessageW(id, WM_QUIT, WPARAM(0), LPARAM(0));
+                let _ = PostThreadMessageW(*id, WM_QUIT, WPARAM(0), LPARAM(0));
             }
         }
     }
