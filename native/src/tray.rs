@@ -1,4 +1,4 @@
-//! 托盘图标与菜单（tray-icon）。菜单事件由 main 的事件循环轮询。
+//! 托盘图标与菜单（tray-icon）。菜单事件由独立转发线程推送到事件循环。
 
 use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuId, MenuItem, PredefinedMenuItem};
 use tray_icon::{TrayIcon, TrayIconBuilder, TrayIconEvent};
@@ -16,12 +16,7 @@ pub enum TrayAction {
     Quit,
 }
 
-pub struct Tray {
-    #[allow(dead_code)] // 必须持有 TrayIcon，drop 会移除托盘图标
-    pub icon: TrayIcon,
-    pub ids: MenuIds,
-}
-
+#[derive(Debug, Clone)]
 pub struct MenuIds {
     pub open: MenuId,
     pub pause: MenuId,
@@ -29,6 +24,12 @@ pub struct MenuIds {
     pub export_csv: MenuId,
     pub export_png: MenuId,
     pub quit: MenuId,
+}
+
+pub struct Tray {
+    #[allow(dead_code)] // 必须持有 TrayIcon，drop 会移除托盘图标
+    pub icon: TrayIcon,
+    pub ids: MenuIds,
 }
 
 pub fn build() -> Result<Tray, String> {
@@ -72,36 +73,37 @@ pub fn build() -> Result<Tray, String> {
     Ok(Tray { icon, ids })
 }
 
-/// 非阻塞轮询一次托盘/菜单事件。
-pub fn poll_action(tray: &Tray) -> Option<TrayAction> {
-    if let Ok(event) = MenuEvent::receiver().try_recv() {
-        let id: &MenuId = event.id();
-        return if id == &tray.ids.open {
-            Some(TrayAction::OpenPanel)
-        } else if id == &tray.ids.pause {
-            Some(TrayAction::TogglePause)
-        } else if id == &tray.ids.autostart {
-            Some(TrayAction::ToggleAutostart)
-        } else if id == &tray.ids.export_csv {
-            Some(TrayAction::ExportCsv)
-        } else if id == &tray.ids.export_png {
-            Some(TrayAction::ExportPng)
-        } else if id == &tray.ids.quit {
-            Some(TrayAction::Quit)
-        } else {
-            None
-        };
+/// 把菜单/托盘事件翻译成动作。
+pub fn translate_menu_event(ids: &MenuIds, event: &MenuEvent) -> Option<TrayAction> {
+    let id = event.id();
+    if id == &ids.open {
+        Some(TrayAction::OpenPanel)
+    } else if id == &ids.pause {
+        Some(TrayAction::TogglePause)
+    } else if id == &ids.autostart {
+        Some(TrayAction::ToggleAutostart)
+    } else if id == &ids.export_csv {
+        Some(TrayAction::ExportCsv)
+    } else if id == &ids.export_png {
+        Some(TrayAction::ExportPng)
+    } else if id == &ids.quit {
+        Some(TrayAction::Quit)
+    } else {
+        None
     }
-    if let Ok(event) = TrayIconEvent::receiver().try_recv() {
-        if matches!(
-            event,
-            TrayIconEvent::Click {
-                button: tray_icon::MouseButton::Left,
-                ..
-            }
-        ) {
-            return Some(TrayAction::OpenPanel);
+}
+
+/// 左键单击托盘 = 打开面板（与 Python 版 default 行为一致）。
+pub fn translate_tray_event(event: &TrayIconEvent) -> Option<TrayAction> {
+    if matches!(
+        event,
+        TrayIconEvent::Click {
+            button: tray_icon::MouseButton::Left,
+            ..
         }
+    ) {
+        Some(TrayAction::OpenPanel)
+    } else {
+        None
     }
-    None
 }

@@ -163,8 +163,6 @@ pub fn start(tx: Sender<Event>) -> HookStop {
                 while GetMessageW(&mut msg, None, 0, 0).0 > 0 {}
                 let _ = UnhookWindowsHookEx(kb);
                 let _ = UnhookWindowsHookEx(ms);
-            } else {
-                eprintln!("keyboard/mouse hook install failed");
             }
         })
         .expect("spawn hook thread");

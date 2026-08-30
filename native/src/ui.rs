@@ -11,6 +11,8 @@ use tao::dpi::LogicalSize;
 use tao::event::{Event, WindowEvent};
 use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::{Icon as TaoIcon, Window, WindowBuilder};
+use tray_icon::menu::MenuEvent;
+use tray_icon::TrayIconEvent;
 use windows::Win32::UI::WindowsAndMessaging::{
     MessageBoxW, IDYES, MB_ICONQUESTION, MB_TOPMOST, MB_YESNO,
 };
@@ -20,7 +22,7 @@ use crate::exporter;
 use crate::hooks;
 use crate::settings;
 use crate::store::Reader;
-use crate::tray::{poll_action, TrayAction};
+use crate::tray::{translate_menu_event, translate_tray_event, TrayAction};
 
 pub struct AppShared {
     pub reader: Reader,
@@ -31,13 +33,8 @@ pub struct AppShared {
 
 struct Panel {
     window: Window,
+    #[allow(dead_code)] // 必须持有 WebView，drop 时才释放 WebView2
     webview: wry::WebView,
-}
-
-impl Drop for Panel {
-    fn drop(&mut self) {
-        eprintln!("[debug] Panel dropped: webview + window released");
-    }
 }
 
 /// 销毁面板：drop 释放 WebView2 controller 与原生窗口，
@@ -89,6 +86,44 @@ pub fn run(shared: AppShared) -> Result<(), String> {
     let tray = crate::tray::build().map_err(|e| format!("托盘初始化失败: {e}"))?;
     let window_icon = app_icon();
 
+    // 托盘/菜单事件用独立线程阻塞接收后转发到事件循环：
+    // 面板关闭时 tao 循环休眠，轮询方式收不到托盘点击，必须走 proxy 唤醒。
+    {
+        let proxy = proxy.clone();
+        let ids = tray.ids.clone();
+        std::thread::Builder::new()
+            .name("tray-menu".into())
+            .spawn(move || loop {
+                if let Ok(event) = MenuEvent::receiver().recv() {
+                    if let Some(action) = translate_menu_event(&ids, &event) {
+                        let user_event = match action {
+                            TrayAction::OpenPanel => UserEvent::OpenPanel,
+                            TrayAction::TogglePause => UserEvent::TogglePause,
+                            TrayAction::ToggleAutostart => UserEvent::ToggleAutostart,
+                            TrayAction::ExportCsv => UserEvent::ExportCsv,
+                            TrayAction::ExportPng => UserEvent::ExportPng,
+                            TrayAction::Quit => UserEvent::Quit,
+                        };
+                        let _ = proxy.send_event(user_event);
+                    }
+                }
+            })
+            .expect("spawn tray menu thread");
+    }
+    {
+        let proxy = proxy.clone();
+        std::thread::Builder::new()
+            .name("tray-click".into())
+            .spawn(move || loop {
+                if let Ok(event) = TrayIconEvent::receiver().recv() {
+                    if translate_tray_event(&event).is_some() {
+                        let _ = proxy.send_event(UserEvent::OpenPanel);
+                    }
+                }
+            })
+            .expect("spawn tray click thread");
+    }
+
     let url = format!("http://127.0.0.1:{}/", shared.port);
     let panel: Arc<Mutex<Option<Panel>>> = Arc::new(Mutex::new(None));
     let quitting = Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -99,7 +134,6 @@ pub fn run(shared: AppShared) -> Result<(), String> {
 
     let panel_for_events = panel.clone();
     let quitting_for_events = quitting.clone();
-    let proxy_for_events = proxy.clone();
 
     event_loop.run(move |event, _target, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -137,7 +171,7 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                             Ok(Panel { window, webview })
                         }) {
                         Ok(p) => *guard = Some(p),
-                        Err(e) => eprintln!("面板创建失败: {e}"),
+                        Err(_) => {}
                     }
                 }
                 UserEvent::TogglePause => {
@@ -226,33 +260,6 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                         } else {
                             quitting_for_events.store(true, Ordering::SeqCst);
                             *control_flow = ControlFlow::Exit;
-                        }
-                    }
-                }
-            }
-            Event::NewEvents(_) => {
-                // 每轮先轮询托盘事件
-            }
-            Event::MainEventsCleared => {
-                while let Some(action) = poll_action(&tray) {
-                    match action {
-                        TrayAction::OpenPanel => {
-                            let _ = proxy_for_events.send_event(UserEvent::OpenPanel);
-                        }
-                        TrayAction::TogglePause => {
-                            let _ = proxy_for_events.send_event(UserEvent::TogglePause);
-                        }
-                        TrayAction::ToggleAutostart => {
-                            let _ = proxy_for_events.send_event(UserEvent::ToggleAutostart);
-                        }
-                        TrayAction::ExportCsv => {
-                            let _ = proxy_for_events.send_event(UserEvent::ExportCsv);
-                        }
-                        TrayAction::ExportPng => {
-                            let _ = proxy_for_events.send_event(UserEvent::ExportPng);
-                        }
-                        TrayAction::Quit => {
-                            let _ = proxy_for_events.send_event(UserEvent::Quit);
                         }
                     }
                 }

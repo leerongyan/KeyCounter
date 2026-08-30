@@ -1,4 +1,5 @@
 //! KeyCounter 原生版入口。
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod autostart;
 mod exporter;
@@ -31,11 +32,7 @@ fn main() {
                 data_dir = args.next().map(PathBuf::from);
             }
             "--no-window" => no_window = true,
-            "--help" => {
-                println!("用法: KeyCounterNative [--port 8765] [--data-dir 目录] [--no-window]");
-                return;
-            }
-            other => eprintln!("未知参数 {other}（--help 查看用法）"),
+            _ => {}
         }
     }
 
@@ -44,8 +41,7 @@ fn main() {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         .unwrap_or_else(|| PathBuf::from("."));
     let data_dir = data_dir.unwrap_or_else(|| exe_dir.join("data"));
-    if let Err(e) = std::fs::create_dir_all(&data_dir) {
-        eprintln!("创建数据目录失败: {e}");
+    if std::fs::create_dir_all(&data_dir).is_err() {
         std::process::exit(1);
     }
     settings::init(&data_dir);
@@ -53,17 +49,11 @@ fn main() {
     let db_path = data_dir.join("keycounter.db");
     let write_conn = match store::open_connection(&db_path) {
         Ok(c) => c,
-        Err(e) => {
-            eprintln!("打开数据库失败: {e}");
-            std::process::exit(1);
-        }
+        Err(_) => std::process::exit(1),
     };
     let read_conn = match store::open_connection(&db_path) {
         Ok(c) => c,
-        Err(e) => {
-            eprintln!("打开数据库失败: {e}");
-            std::process::exit(1);
-        }
+        Err(_) => std::process::exit(1),
     };
 
     let (tx, rx) = crossbeam_channel::unbounded();
@@ -77,11 +67,10 @@ fn main() {
         paused: paused.clone(),
         started_at: model::now_text(),
     });
-    if let Err(e) = server::spawn(ctx, port) {
-        eprintln!("HTTP 服务启动失败（端口 {port} 可能被占用）: {e}");
+    if server::spawn(ctx, port).is_err() {
+        // 端口被占用（可能已有实例在运行）时静默退出，避免弹控制台报错
         std::process::exit(1);
     }
-    println!("KeyCounter native 已启动: http://127.0.0.1:{port}/");
 
     let shared = ui::AppShared {
         reader,
@@ -89,8 +78,7 @@ fn main() {
         port,
         no_window,
     };
-    if let Err(e) = ui::run(shared) {
-        eprintln!("{e}");
+    if ui::run(shared).is_err() {
         std::process::exit(1);
     }
 

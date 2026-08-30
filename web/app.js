@@ -472,6 +472,20 @@ async function loadSettings() {
   }
 }
 
+function saveCloseAction() {
+  fetchJSON("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ close_action: closeActionSelect.value }),
+  })
+    .then(() => {
+      statusText.textContent = "关闭行为已保存";
+    })
+    .catch(() => {
+      statusText.textContent = "关闭行为保存失败";
+    });
+}
+
 async function refresh() {
   const results = await Promise.allSettled([
     fetchJSON(buildApiUrl("/api/summary")),
@@ -536,6 +550,8 @@ unitSelect.addEventListener("change", () => {
   localStorage.setItem("distance-unit", state.unit);
   renderDistance();
 });
+
+closeActionSelect.addEventListener("change", saveCloseAction);
 
 window.addEventListener("resize", requestRelayout);
 if (typeof ResizeObserver !== "undefined") {
