@@ -13,8 +13,10 @@ use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::{Icon as TaoIcon, Window, WindowBuilder};
 use tray_icon::menu::MenuEvent;
 use tray_icon::TrayIconEvent;
+use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    MessageBoxW, IDYES, MB_ICONQUESTION, MB_TOPMOST, MB_YESNO,
+    MessageBoxW, IDNO, IDYES, MB_ICONINFORMATION, MB_ICONQUESTION, MB_TOPMOST,
+    MB_YESNO, MB_YESNOCANCEL, SW_SHOWNORMAL,
 };
 
 use crate::autostart;
@@ -57,6 +59,44 @@ fn message_box_yesno(text: &str) -> bool {
             windows::core::PCWSTR(c.as_ptr()),
             MB_YESNO | MB_ICONQUESTION | MB_TOPMOST,
         ) == IDYES
+    }
+}
+
+fn message_box_yesnocancel(text: &str) -> windows::Win32::UI::WindowsAndMessaging::MESSAGEBOX_RESULT {
+    unsafe {
+        let t = to_wide(text);
+        let c = to_wide("KeyCounter");
+        MessageBoxW(
+            None,
+            windows::core::PCWSTR(t.as_ptr()),
+            windows::core::PCWSTR(c.as_ptr()),
+            MB_YESNOCANCEL | MB_ICONINFORMATION | MB_TOPMOST,
+        )
+    }
+}
+
+fn show_export_completion(path: &std::path::Path) {
+    let choice = message_box_yesnocancel(&format!(
+        "已导出：{}\n\n是：打开文件\n否：打开所在文件夹\n取消：不打开",
+        path.display()
+    ));
+    if choice == IDYES {
+        unsafe {
+            let file = to_wide(&path.display().to_string());
+            let operation = to_wide("open");
+            ShellExecuteW(
+                None,
+                windows::core::PCWSTR(operation.as_ptr()),
+                windows::core::PCWSTR(file.as_ptr()),
+                None,
+                None,
+                SW_SHOWNORMAL,
+            );
+        }
+    } else if choice == IDNO {
+        let _ = std::process::Command::new("explorer.exe")
+            .arg(format!("/select,\"{}\"", path.display()))
+            .spawn();
     }
 }
 
@@ -224,7 +264,7 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                 );
                                 match save_export_path(&filename, "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0") {
                                     Some(path) => match std::fs::write(&path, data.as_bytes()) {
-                                        Ok(()) => message_box_ok(&format!("已导出：{}", path.display())),
+                                        Ok(()) => show_export_completion(&path),
                                         Err(e) => message_box_ok(&format!("导出失败：{e}")),
                                     },
                                     None => {}
@@ -246,7 +286,7 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                 );
                                 match save_export_path(&filename, "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0") {
                                     Some(path) => match std::fs::write(&path, bytes) {
-                                        Ok(()) => message_box_ok(&format!("已导出：{}", path.display())),
+                                        Ok(()) => show_export_completion(&path),
                                         Err(e) => message_box_ok(&format!("导出失败：{e}")),
                                     },
                                     None => {}

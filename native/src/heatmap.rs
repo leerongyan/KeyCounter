@@ -214,12 +214,18 @@ impl Canvas {
         let ids: Vec<ab_glyph::GlyphId> = text.chars().map(|c| scaled.font().glyph_id(c)).collect();
         let mut total = 0.0f32;
         for (i, id) in ids.iter().enumerate() {
-            total += scaled.h_advance(*id);
+            let advance = scaled.h_advance(*id);
+            total += if advance.is_finite() { advance } else { 0.0 };
             if let Some(next) = ids.get(i + 1) {
-                total += scaled.kern(*id, *next);
+                let kern = scaled.kern(*id, *next);
+                total += if kern.is_finite() { kern } else { 0.0 };
             }
         }
-        let mut cursor = if center { x - total / 2.0 } else { x };
+        let mut cursor = if center && total.is_finite() && total > 0.0 {
+            x - total / 2.0
+        } else {
+            x
+        };
 
         for (i, id) in ids.iter().enumerate() {
             let glyph = AbGlyph {
@@ -227,17 +233,27 @@ impl Canvas {
                 scale,
                 position: ab_glyph::point(cursor, baseline),
             };
-            cursor += scaled.h_advance(*id);
+            let advance = scaled.h_advance(*id);
+            cursor += if advance.is_finite() { advance } else { 0.0 };
             if let Some(next) = ids.get(i + 1) {
-                cursor += scaled.kern(*id, *next);
+                let kern = scaled.kern(*id, *next);
+                cursor += if kern.is_finite() { kern } else { 0.0 };
             }
             if let Some(outlined) = scaled.outline_glyph(glyph) {
+                let bounds = outlined.px_bounds();
+                let left = bounds.min.x;
+                let top = bounds.min.y;
                 let [r, gc, b] = color;
                 outlined.draw(|px, py, v| {
                     if v <= 0.02 {
                         return;
                     }
-                    let (xu, yu) = (px as u32, py as u32);
+                    let xu = px as f32 + left;
+                    let yu = py as f32 + top;
+                    if xu < 0.0 || yu < 0.0 {
+                        return;
+                    }
+                    let (xu, yu) = (xu as u32, yu as u32);
                     if xu >= self.pixmap.width() || yu >= self.pixmap.height() {
                         return;
                     }
@@ -252,6 +268,85 @@ impl Canvas {
             }
         }
     }
+}
+
+
+fn number_string(value: i64) -> String {
+    let text = value.abs().to_string();
+    let mut out = String::new();
+    for (index, ch) in text.chars().enumerate() {
+        if index > 0 && (text.len() - index) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    if value < 0 {
+        format!("-{out}")
+    } else {
+        out
+    }
+}
+
+fn display_label(key_id: &str) -> String {
+    for row in KEYBOARD_ROWS {
+        for (id, label, _) in row.iter() {
+            if *id == key_id {
+                return (*label).to_string();
+            }
+        }
+    }
+    for (id, label, _, _) in NAV_KEYS {
+        if *id == key_id {
+            return (*label).to_string();
+        }
+    }
+    for (id, label, _, _, _, _) in NUMPAD_KEYS {
+        if *id == key_id {
+            return (*label).to_string();
+        }
+    }
+    key_id.to_uppercase()
+}
+
+fn zone_counts(counts: &HashMap<String, i64>) -> Vec<(&'static str, i64)> {
+    let get = |id: &str| count_for(counts, id);
+    let mut main = 0;
+    let mut digits = 0;
+    let mut function = 0;
+    let mut navigation = 0;
+    let mut numpad = 0;
+    let mut known_ids = std::collections::HashSet::new();
+
+    for row in KEYBOARD_ROWS {
+        for (id, _, _) in row.iter() {
+            known_ids.insert(*id);
+        }
+    }
+    for (id, _, _, _) in NAV_KEYS {
+        known_ids.insert(*id);
+    }
+    for (id, _, _, _, _, _) in NUMPAD_KEYS {
+        known_ids.insert(*id);
+    }
+
+    for id in known_ids {
+        let value = get(id);
+        match id {
+            "esc" | "f1" | "f2" | "f3" | "f4" | "f5" | "f6" | "f7" | "f8" | "f9" | "f10" | "f11" | "f12" => function += value,
+            "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "0" => digits += value,
+            "insert" | "home" | "page_up" | "delete" | "end" | "page_down" | "up" | "left" | "down" | "right" => navigation += value,
+            "num_lock" | "numpad_divide" | "numpad_multiply" | "numpad_subtract" | "numpad_add" | "numpad7" | "numpad8" | "numpad9" | "numpad4" | "numpad5" | "numpad6" | "numpad1" | "numpad2" | "numpad3" | "numpad0" | "numpad_decimal" => numpad += value,
+            _ => main += value,
+        }
+    }
+
+    vec![
+        ("主键区", main),
+        ("数字区", digits),
+        ("功能区", function),
+        ("导航区", navigation),
+        ("小键盘", numpad),
+    ]
 }
 
 fn max_row_width() -> f32 {
@@ -269,8 +364,10 @@ pub fn render_heatmap(counts: &HashMap<String, i64>, day: &str, total_keys: i64)
     let keyboard_width = main_width + 14.0 + nav_width + 14.0 + numpad_width;
     let title_height = 68.0f32;
     let legend_height = 34.0f32;
+    let heatmap_height = PAD + title_height + 6.0 * KEY_H + 5.0 * GAP + legend_height + PAD;
+    let summary_height = 240.0f32;
     let canvas_w = keyboard_width + PAD * 2.0;
-    let canvas_h = PAD + title_height + 6.0 * KEY_H + 5.0 * GAP + legend_height + PAD;
+    let canvas_h = heatmap_height + summary_height;
 
     let mut canvas = Canvas {
         pixmap: Pixmap::new(canvas_w as u32, canvas_h as u32)?,
@@ -342,6 +439,77 @@ pub fn render_heatmap(counts: &HashMap<String, i64>, day: &str, total_keys: i64)
     }
     canvas.draw_text("多", PAD + 28.0 + 21.0 * 5.0 + 8.0, legend_y, 12.0, [90, 104, 98], false, false);
 
+    // 使用总结
+    let summary_line = heatmap_height - 14.0;
+    canvas.fill_rect(PAD, summary_line, canvas_w - PAD * 2.0, 1.0, [214, 222, 226]);
+    let summary_y = heatmap_height + 8.0;
+    canvas.draw_text("使用总结", PAD, summary_y, 20.0, [22, 33, 29], false, true);
+
+    let actual_total: i64 = counts.values().sum();
+    let known_count = KEYBOARD_ROWS.iter().flat_map(|row| row.iter().map(|(id, _, _)| *id))
+        .chain(NAV_KEYS.iter().map(|(id, _, _, _)| *id))
+        .chain(NUMPAD_KEYS.iter().map(|(id, _, _, _, _, _)| *id))
+        .collect::<std::collections::HashSet<_>>().len();
+    let active_count = KEYBOARD_ROWS.iter().flat_map(|row| row.iter().map(|(id, _, _)| *id))
+        .chain(NAV_KEYS.iter().map(|(id, _, _, _)| *id))
+        .chain(NUMPAD_KEYS.iter().map(|(id, _, _, _, _, _)| *id))
+        .filter(|id| count_for(counts, id) > 0)
+        .collect::<std::collections::HashSet<_>>().len();
+    let coverage = if known_count > 0 { active_count as f64 / known_count as f64 * 100.0 } else { 0.0 };
+    canvas.draw_text(
+        &format!(
+            "总按键 {} · 活跃键位 {}/{} · 覆盖率 {coverage:.1}%",
+            number_string(actual_total),
+            active_count,
+            known_count
+        ),
+        PAD,
+        summary_y + 40.0,
+        14.0,
+        [70, 84, 79],
+        false,
+        false,
+    );
+
+    canvas.draw_text("高频按键 Top 10", 660.0, summary_y + 84.0, 15.0, [22, 33, 29], false, true);
+    let mut top_keys: Vec<(&String, &i64)> = counts.iter().filter(|(_, count)| **count > 0).collect();
+    top_keys.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+    for index in 0..10 {
+        let column = index / 5;
+        let row = index % 5;
+        let x = 660.0 + column as f32 * 310.0;
+        let y = summary_y + 112.0 + row as f32 * 20.0;
+        if let Some((key_id, count)) = top_keys.get(index) {
+            let share = if actual_total > 0 { **count as f64 / actual_total as f64 * 100.0 } else { 0.0 };
+            canvas.draw_text(
+                &format!("{}. {} · {} · {share:.1}%", index + 1, display_label(key_id), number_string(**count)),
+                x,
+                y,
+                12.0,
+                [70, 84, 79],
+                false,
+                false,
+            );
+        }
+    }
+
+    canvas.draw_text("分区占比", PAD, summary_y + 84.0, 15.0, [22, 33, 29], false, true);
+    let zones = zone_counts(counts);
+    let max_zone = zones.iter().map(|(_, value)| *value).max().unwrap_or(0);
+    for (index, (label, value)) in zones.iter().enumerate() {
+        let y = summary_y + 118.0 + index as f32 * 22.0;
+        canvas.draw_text(*label, PAD, y, 12.0, [70, 84, 79], false, false);
+        let bar_x = PAD + 80.0;
+        let bar_width = 320.0;
+        canvas.fill_rect(bar_x, y + 1.0, bar_width, 8.0, [226, 233, 236]);
+        let ratio = if max_zone > 0 { *value as f32 / max_zone as f32 } else { 0.0 };
+        if ratio > 0.0 {
+            canvas.fill_rect(bar_x, y + 1.0, bar_width * ratio, 8.0, [216, 67, 47]);
+        }
+        let share = if actual_total > 0 { *value as f64 / actual_total as f64 * 100.0 } else { 0.0 };
+        canvas.draw_text(&format!("{share:.1}%"), bar_x + bar_width + 12.0, y, 12.0, [70, 84, 79], false, false);
+    }
+
     canvas.pixmap.encode_png().ok()
 }
 
@@ -381,4 +549,40 @@ pub fn tray_icon_rgba() -> Option<(Vec<u8>, u32, u32)> {
     canvas.fill_round_rect(11.0, 10.0, 38.0, 9.0, [126, 224, 211]);
 
     Some((canvas.pixmap.data().to_vec(), canvas.pixmap.width(), canvas.pixmap.height()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn centered_text_draws_pixels() {
+        let mut canvas = Canvas {
+            pixmap: Pixmap::new(200, 100).unwrap(),
+            font: load_font(),
+            bold_font: load_bold_font(),
+        };
+        canvas.fill_rect(0.0, 0.0, 200.0, 100.0, [237, 241, 243]);
+        canvas.draw_text("Esc", 100.0, 50.0, 12.0, [30, 45, 39], true, false);
+        let pixels = canvas.pixmap.data();
+        let mut min_x = u32::MAX;
+        let mut min_y = u32::MAX;
+        let mut max_x = 0;
+        let mut max_y = 0;
+        let mut non_background = 0;
+        let width = canvas.pixmap.width();
+        for (index, pixel) in pixels.chunks_exact(4).enumerate() {
+            if !(pixel[0] == 237 && pixel[1] == 241 && pixel[2] == 243) {
+                non_background += 1;
+                let x = (index as u32) % width;
+                let y = (index as u32) / width;
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+        println!("bounds=({min_x},{min_y})-({max_x},{max_y}), non={non_background}");
+        assert!(non_background > 0, "non-background pixels: {non_background}");
+    }
 }
