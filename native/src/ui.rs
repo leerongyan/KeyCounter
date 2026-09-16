@@ -73,6 +73,35 @@ fn message_box_ok(text: &str) {
     }
 }
 
+fn save_export_path(file_name: &str, filter: &str) -> Option<std::path::PathBuf> {
+    use windows::core::PWSTR;
+    use windows::Win32::UI::Controls::Dialogs::{
+        GetSaveFileNameW, OFN_OVERWRITEPROMPT, OFN_PATHMUSTEXIST, OPENFILENAMEW,
+    };
+
+    let mut buffer = [0u16; 260];
+    for (i, ch) in file_name.encode_utf16().enumerate() {
+        if i + 1 >= buffer.len() { break; }
+        buffer[i] = ch;
+    }
+    let mut filter_w: Vec<u16> = filter.encode_utf16().collect();
+    filter_w.push(0); filter_w.push(0);
+    let mut title_w: Vec<u16> = "选择保存位置".encode_utf16().collect();
+    title_w.push(0);
+    let mut initial_dir: Vec<u16> = dirs_home().as_os_str().to_string_lossy().encode_utf16().collect();
+    initial_dir.push(0);
+
+    let mut ofn = OPENFILENAMEW::default();
+    ofn.lStructSize = std::mem::size_of::<OPENFILENAMEW>() as u32;
+    ofn.lpstrFilter = windows::core::PCWSTR(filter_w.as_ptr());
+    ofn.lpstrFile = PWSTR(buffer.as_mut_ptr());
+    ofn.nMaxFile = buffer.len() as u32;
+    ofn.lpstrTitle = windows::core::PCWSTR(title_w.as_ptr());
+    ofn.lpstrInitialDir = windows::core::PCWSTR(initial_dir.as_ptr());
+    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
+    unsafe { if GetSaveFileNameW(&mut ofn).as_bool() { Some(std::path::PathBuf::from(String::from_utf16_lossy(&buffer))) } else { None } }
+}
+
 fn app_icon() -> Option<TaoIcon> {
     let (rgba, w, h) = crate::heatmap::tray_icon_rgba()?;
     TaoIcon::from_rgba(rgba, w, h).ok()
@@ -193,10 +222,12 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                     "KeyCounter_stats_{}.csv",
                                     chrono::Local::now().format("%Y-%m-%d")
                                 );
-                                let path = dirs_home().join(&filename);
-                                match std::fs::write(&path, data.as_bytes()) {
-                                    Ok(()) => message_box_ok(&format!("已导出：{}", path.display())),
-                                    Err(e) => message_box_ok(&format!("导出失败：{e}")),
+                                match save_export_path(&filename, "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0") {
+                                    Some(path) => match std::fs::write(&path, data.as_bytes()) {
+                                        Ok(()) => message_box_ok(&format!("已导出：{}", path.display())),
+                                        Err(e) => message_box_ok(&format!("导出失败：{e}")),
+                                    },
+                                    None => {}
                                 }
                             }
                             Err(_) => message_box_ok("导出失败"),
@@ -213,10 +244,12 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                     "KeyCounter_heatmap_{}.png",
                                     chrono::Local::now().format("%Y-%m-%d")
                                 );
-                                let path = dirs_home().join(&filename);
-                                match std::fs::write(&path, bytes) {
-                                    Ok(()) => message_box_ok(&format!("已导出：{}", path.display())),
-                                    Err(e) => message_box_ok(&format!("导出失败：{e}")),
+                                match save_export_path(&filename, "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0") {
+                                    Some(path) => match std::fs::write(&path, bytes) {
+                                        Ok(()) => message_box_ok(&format!("已导出：{}", path.display())),
+                                        Err(e) => message_box_ok(&format!("导出失败：{e}")),
+                                    },
+                                    None => {}
                                 }
                             }
                             _ => message_box_ok("热力图生成失败"),

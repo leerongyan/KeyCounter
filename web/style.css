@@ -381,6 +381,11 @@ main {
   grid-auto-rows: 40px;
   gap: 6px;
 }
+.numpad .key {
+  height: 100%;
+  min-height: 40px;
+}
+
 .numpad {
   display: grid;
   grid-template-columns: repeat(4, 52px);
@@ -679,4 +684,3 @@ main {
 .panel[draggable="true"] {
   cursor: grab;
 }
-

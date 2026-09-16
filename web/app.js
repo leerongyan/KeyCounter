@@ -584,6 +584,49 @@ rangeEnd.addEventListener("change", () => {
 });
 
 
+async function exportWithSavePicker(url, suggestedName, types) {
+  try {
+    if ("showSaveFilePicker" in window) {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types,
+      });
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const writable = await handle.createWritable();
+      await response.body.pipeTo(writable);
+      return;
+    }
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = suggestedName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  } catch (error) {
+    if (error && error.name === "AbortError") return;
+    statusText.textContent = `导出失败：${error.message}`;
+  }
+}
+
+function setupExports() {
+  const csvButton = document.getElementById("export-csv-button");
+  const pngButton = document.getElementById("export-png-button");
+  csvButton?.addEventListener("click", () => exportWithSavePicker(
+    "/api/export?format=csv",
+    `KeyCounter_stats_${new Date().toISOString().slice(0, 10)}.csv`,
+    [{ description: "CSV 文件", accept: { "text/csv": [".csv"] } }],
+  ));
+  pngButton?.addEventListener("click", () => {
+    const day = new Date().toLocaleDateString("sv-SE");
+    exportWithSavePicker(
+      `/api/export/heatmap.png?date=${day}`,
+      `KeyCounter_heatmap_${day}.png`,
+      [{ description: "PNG 图片", accept: { "image/png": [".png"] } }],
+    );
+  });
+}
 function setupPanelLayout() {
   let draggedPanel = null;
   const panels = document.querySelectorAll(".panel");
@@ -613,10 +656,10 @@ function setupPanelLayout() {
   });
 }
 
+setupExports();
 setupPanelLayout();
 loadSettings();
 buildKeyboard();
 requestRelayout();
 refresh();
 setInterval(refresh, 1000);
-
