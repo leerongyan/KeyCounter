@@ -164,7 +164,8 @@ fn show_export_completion(path: &std::path::Path) {
         }
     } else if choice == IDNO {
         let _ = std::process::Command::new("explorer.exe")
-            .arg(format!("/select,\"{}\"", path.display()))
+            .arg("/select,")
+            .arg(path)
             .spawn();
     }
 }
