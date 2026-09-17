@@ -292,6 +292,49 @@ fn handle_request(ctx: Arc<ServerContext>, mut request: tiny_http::Request) {
                 ),
             }
         }
+        ("POST", "/api/export/native/csv") => {
+            let reader = ctx.reader.clone();
+            std::thread::spawn(move || {
+                match std::panic::catch_unwind(move || exporter::export_csv(&reader)) {
+                    Ok(data) => {
+                        let filename = format!(
+                            "KeyCounter_stats_{}.csv",
+                            chrono::Local::now().format("%Y-%m-%d")
+                        );
+                        crate::ui::export_bytes_with_dialog(
+                            data.into_bytes(),
+                            &filename,
+                            "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0",
+                            "导出失败",
+                        );
+                    }
+                    Err(_) => crate::ui::show_export_failure("导出失败"),
+                }
+            });
+            respond_json(request, json!({"started": true}))
+        }
+        ("POST", "/api/export/native/heatmap.png") => {
+            let reader = ctx.reader.clone();
+            let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+            let day = param(&params, "date").unwrap_or(&today).to_string();
+            let day = valid_iso(&day).unwrap_or(today);
+            std::thread::spawn(move || {
+                let export_day = day.clone();
+                match std::panic::catch_unwind(move || exporter::heatmap_png(&reader, &export_day)) {
+                    Ok(Some(bytes)) => {
+                        let filename = format!("KeyCounter_heatmap_{day}.png");
+                        crate::ui::export_bytes_with_dialog(
+                            bytes,
+                            &filename,
+                            "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0",
+                            "导出失败",
+                        );
+                    }
+                    _ => crate::ui::show_export_failure("热力图生成失败"),
+                }
+            });
+            respond_json(request, json!({"started": true}))
+        }
         ("GET", "/api/settings") => respond_json(request, Value::Object(settings::get_all().into_iter().collect())),
         ("GET", "/api/status") => respond_json(
             request,

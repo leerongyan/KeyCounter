@@ -142,6 +142,31 @@ fn save_export_path(file_name: &str, filter: &str) -> Option<std::path::PathBuf>
     unsafe { if GetSaveFileNameW(&mut ofn).as_bool() { Some(std::path::PathBuf::from(String::from_utf16_lossy(&buffer))) } else { None } }
 }
 
+pub(crate) fn export_bytes_with_dialog(
+    data: Vec<u8>,
+    filename: &str,
+    filter: &str,
+    failure_message: &str,
+) -> bool {
+    match save_export_path(filename, filter) {
+        Some(path) => match std::fs::write(&path, &data) {
+            Ok(()) => {
+                show_export_completion(&path);
+                true
+            }
+            Err(e) => {
+                message_box_ok(&format!("{failure_message}：{e}"));
+                false
+            }
+        },
+        None => false,
+    }
+}
+
+pub(crate) fn show_export_failure(message: &str) {
+    message_box_ok(message);
+}
+
 fn app_icon() -> Option<TaoIcon> {
     let (rgba, w, h) = crate::heatmap::tray_icon_rgba()?;
     TaoIcon::from_rgba(rgba, w, h).ok()
@@ -262,15 +287,14 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                     "KeyCounter_stats_{}.csv",
                                     chrono::Local::now().format("%Y-%m-%d")
                                 );
-                                match save_export_path(&filename, "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0") {
-                                    Some(path) => match std::fs::write(&path, data.as_bytes()) {
-                                        Ok(()) => show_export_completion(&path),
-                                        Err(e) => message_box_ok(&format!("导出失败：{e}")),
-                                    },
-                                    None => {}
-                                }
+                                export_bytes_with_dialog(
+                                    data.into_bytes(),
+                                    &filename,
+                                    "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0",
+                                    "导出失败",
+                                );
                             }
-                            Err(_) => message_box_ok("导出失败"),
+                            Err(_) => show_export_failure("导出失败"),
                         }
                     });
                 }
@@ -284,15 +308,14 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                     "KeyCounter_heatmap_{}.png",
                                     chrono::Local::now().format("%Y-%m-%d")
                                 );
-                                match save_export_path(&filename, "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0") {
-                                    Some(path) => match std::fs::write(&path, bytes) {
-                                        Ok(()) => show_export_completion(&path),
-                                        Err(e) => message_box_ok(&format!("导出失败：{e}")),
-                                    },
-                                    None => {}
-                                }
+                                export_bytes_with_dialog(
+                                    bytes,
+                                    &filename,
+                                    "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0",
+                                    "导出失败",
+                                );
                             }
-                            _ => message_box_ok("热力图生成失败"),
+                            _ => show_export_failure("热力图生成失败"),
                         }
                     });
                 }

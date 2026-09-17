@@ -584,49 +584,29 @@ rangeEnd.addEventListener("change", () => {
 });
 
 
-async function exportWithSavePicker(url, suggestedName, types) {
+async function requestNativeExport(url) {
   try {
-    if ("showSaveFilePicker" in window) {
-      const handle = await window.showSaveFilePicker({
-        suggestedName,
-        types,
-      });
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const writable = await handle.createWritable();
-      await response.body.pipeTo(writable);
-      return;
-    }
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = suggestedName;
-    link.click();
-    URL.revokeObjectURL(link.href);
+    statusText.textContent = "正在打开导出对话框...";
+    const response = await fetch(url, { method: "POST" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    if (!result.started) throw new Error("导出未启动");
+    statusText.textContent = "请在导出对话框中选择保存位置";
   } catch (error) {
-    if (error && error.name === "AbortError") return;
     statusText.textContent = `导出失败：${error.message}`;
   }
 }
 
 function setupExports() {
-  const csvButton = document.getElementById("export-csv-button");
-  const pngButton = document.getElementById("export-png-button");
-  csvButton?.addEventListener("click", () => exportWithSavePicker(
-    "/api/export?format=csv",
-    `KeyCounter_stats_${new Date().toISOString().slice(0, 10)}.csv`,
-    [{ description: "CSV 文件", accept: { "text/csv": [".csv"] } }],
-  ));
-  pngButton?.addEventListener("click", () => {
+  document.getElementById("export-csv-button")?.addEventListener("click", () => {
+    requestNativeExport("/api/export/native/csv");
+  });
+  document.getElementById("export-png-button")?.addEventListener("click", () => {
     const day = new Date().toLocaleDateString("sv-SE");
-    exportWithSavePicker(
-      `/api/export/heatmap.png?date=${day}`,
-      `KeyCounter_heatmap_${day}.png`,
-      [{ description: "PNG 图片", accept: { "image/png": [".png"] } }],
-    );
+    requestNativeExport(`/api/export/native/heatmap.png?date=${day}`);
   });
 }
+
 function setupPanelLayout() {
   let draggedPanel = null;
   const panels = document.querySelectorAll(".panel");
