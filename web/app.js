@@ -586,12 +586,12 @@ rangeEnd.addEventListener("change", () => {
 
 async function requestNativeExport(url) {
   try {
-    statusText.textContent = "正在打开导出对话框...";
+    statusText.textContent = "正在导出...";
     const response = await fetch(url, { method: "POST" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const result = await response.json();
     if (!result.started) throw new Error("导出未启动");
-    statusText.textContent = "请在导出对话框中选择保存位置";
+    statusText.textContent = "导出完成";
   } catch (error) {
     statusText.textContent = `导出失败：${error.message}`;
   }

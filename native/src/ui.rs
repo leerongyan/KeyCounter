@@ -13,10 +13,8 @@ use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::{Icon as TaoIcon, Window, WindowBuilder};
 use tray_icon::menu::MenuEvent;
 use tray_icon::TrayIconEvent;
-use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    MessageBoxW, IDNO, IDYES, MB_ICONINFORMATION, MB_ICONQUESTION, MB_TOPMOST,
-    MB_YESNO, MB_YESNOCANCEL, SW_SHOWNORMAL,
+    MessageBoxW, IDYES, MB_ICONQUESTION, MB_TOPMOST, MB_YESNO,
 };
 
 use crate::autostart;
@@ -62,44 +60,6 @@ fn message_box_yesno(text: &str) -> bool {
     }
 }
 
-fn message_box_yesnocancel(text: &str) -> windows::Win32::UI::WindowsAndMessaging::MESSAGEBOX_RESULT {
-    unsafe {
-        let t = to_wide(text);
-        let c = to_wide("KeyCounter");
-        MessageBoxW(
-            None,
-            windows::core::PCWSTR(t.as_ptr()),
-            windows::core::PCWSTR(c.as_ptr()),
-            MB_YESNOCANCEL | MB_ICONINFORMATION | MB_TOPMOST,
-        )
-    }
-}
-
-fn show_export_completion(path: &std::path::Path) {
-    let choice = message_box_yesnocancel(&format!(
-        "已导出：{}\n\n是：打开文件\n否：打开所在文件夹\n取消：不打开",
-        path.display()
-    ));
-    if choice == IDYES {
-        unsafe {
-            let file = to_wide(&path.display().to_string());
-            let operation = to_wide("open");
-            ShellExecuteW(
-                None,
-                windows::core::PCWSTR(operation.as_ptr()),
-                windows::core::PCWSTR(file.as_ptr()),
-                None,
-                None,
-                SW_SHOWNORMAL,
-            );
-        }
-    } else if choice == IDNO {
-        let _ = std::process::Command::new("explorer.exe")
-            .arg(format!("/select,\"{}\"", path.display()))
-            .spawn();
-    }
-}
-
 fn message_box_ok(text: &str) {
     unsafe {
         let t = to_wide(text);
@@ -113,53 +73,27 @@ fn message_box_ok(text: &str) {
     }
 }
 
-fn save_export_path(file_name: &str, filter: &str) -> Option<std::path::PathBuf> {
-    use windows::core::PWSTR;
-    use windows::Win32::UI::Controls::Dialogs::{
-        GetSaveFileNameW, OFN_OVERWRITEPROMPT, OFN_PATHMUSTEXIST, OPENFILENAMEW,
-    };
-
-    let mut buffer = [0u16; 260];
-    for (i, ch) in file_name.encode_utf16().enumerate() {
-        if i + 1 >= buffer.len() { break; }
-        buffer[i] = ch;
-    }
-    let mut filter_w: Vec<u16> = filter.encode_utf16().collect();
-    filter_w.push(0); filter_w.push(0);
-    let mut title_w: Vec<u16> = "选择保存位置".encode_utf16().collect();
-    title_w.push(0);
-    let mut initial_dir: Vec<u16> = dirs_home().as_os_str().to_string_lossy().encode_utf16().collect();
-    initial_dir.push(0);
-
-    let mut ofn = OPENFILENAMEW::default();
-    ofn.lStructSize = std::mem::size_of::<OPENFILENAMEW>() as u32;
-    ofn.lpstrFilter = windows::core::PCWSTR(filter_w.as_ptr());
-    ofn.lpstrFile = PWSTR(buffer.as_mut_ptr());
-    ofn.nMaxFile = buffer.len() as u32;
-    ofn.lpstrTitle = windows::core::PCWSTR(title_w.as_ptr());
-    ofn.lpstrInitialDir = windows::core::PCWSTR(initial_dir.as_ptr());
-    ofn.Flags = OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST;
-    unsafe { if GetSaveFileNameW(&mut ofn).as_bool() { Some(std::path::PathBuf::from(String::from_utf16_lossy(&buffer))) } else { None } }
-}
-
 pub(crate) fn export_bytes_with_dialog(
     data: Vec<u8>,
     filename: &str,
-    filter: &str,
     failure_message: &str,
 ) -> bool {
-    match save_export_path(filename, filter) {
-        Some(path) => match std::fs::write(&path, &data) {
-            Ok(()) => {
-                show_export_completion(&path);
-                true
-            }
-            Err(e) => {
-                message_box_ok(&format!("{failure_message}：{e}"));
-                false
-            }
-        },
-        None => false,
+    let path = dirs_home().join(filename);
+    if let Some(parent) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            message_box_ok(&format!("{failure_message}：{e}"));
+            return false;
+        }
+    }
+    match std::fs::write(&path, &data) {
+        Ok(()) => {
+            message_box_ok(&format!("已导出：{}", path.display()));
+            true
+        }
+        Err(e) => {
+            message_box_ok(&format!("{failure_message}：{e}"));
+            false
+        }
     }
 }
 
@@ -290,7 +224,6 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                 export_bytes_with_dialog(
                                     data.into_bytes(),
                                     &filename,
-                                    "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0",
                                     "导出失败",
                                 );
                             }
@@ -311,7 +244,6 @@ pub fn run(shared: AppShared) -> Result<(), String> {
                                 export_bytes_with_dialog(
                                     bytes,
                                     &filename,
-                                    "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0",
                                     "导出失败",
                                 );
                             }
