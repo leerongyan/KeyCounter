@@ -591,7 +591,7 @@ async function requestNativeExport(url) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const result = await response.json();
     if (!result.started) throw new Error("导出未启动");
-    statusText.textContent = "导出完成";
+    statusText.textContent = "已开始导出";
   } catch (error) {
     statusText.textContent = `导出失败：${error.message}`;
   }

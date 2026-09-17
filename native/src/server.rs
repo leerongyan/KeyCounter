@@ -304,6 +304,7 @@ fn handle_request(ctx: Arc<ServerContext>, mut request: tiny_http::Request) {
                         crate::ui::export_bytes_with_dialog(
                             data.into_bytes(),
                             &filename,
+                            "CSV 文件 (*.csv)\0*.csv\0所有文件 (*.*)\0*.*\0",
                             "导出失败",
                         );
                     }
@@ -325,6 +326,7 @@ fn handle_request(ctx: Arc<ServerContext>, mut request: tiny_http::Request) {
                         crate::ui::export_bytes_with_dialog(
                             bytes,
                             &filename,
+                            "PNG 图片 (*.png)\0*.png\0所有文件 (*.*)\0*.*\0",
                             "导出失败",
                         );
                     }
