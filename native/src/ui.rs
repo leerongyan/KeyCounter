@@ -163,10 +163,19 @@ fn show_export_completion(path: &std::path::Path) {
             );
         }
     } else if choice == IDNO {
-        let _ = std::process::Command::new("explorer.exe")
-            .arg("/select,")
-            .arg(path)
-            .spawn();
+        let operation = to_wide("open");
+        let explorer = to_wide("explorer.exe");
+        let parameters = to_wide(&format!("/select,\"{}\"", path.display()));
+        unsafe {
+            ShellExecuteW(
+                None,
+                windows::core::PCWSTR(operation.as_ptr()),
+                windows::core::PCWSTR(explorer.as_ptr()),
+                windows::core::PCWSTR(parameters.as_ptr()),
+                None,
+                SW_SHOWNORMAL,
+            );
+        }
     }
 }
 
