@@ -13,13 +13,10 @@ use tao::event_loop::{ControlFlow, EventLoop};
 use tao::window::{Icon as TaoIcon, Window, WindowBuilder};
 use tray_icon::menu::MenuEvent;
 use tray_icon::TrayIconEvent;
-use windows::Win32::UI::Controls::{
-    TaskDialogIndirect, TASKDIALOGCONFIG, TASKDIALOG_BUTTON, TDF_ALLOW_DIALOG_CANCELLATION,
-    TDF_SIZE_TO_CONTENT, TDF_USE_COMMAND_LINKS,
-};
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::{
-    MessageBoxW, SW_SHOWNORMAL, IDYES, MB_ICONQUESTION, MB_TOPMOST, MB_YESNO,
+    MessageBoxW, SW_SHOWNORMAL, IDNO, IDYES, MB_ICONINFORMATION, MB_ICONQUESTION,
+    MB_TOPMOST, MB_YESNO, MB_YESNOCANCEL,
 };
 
 use crate::autostart;
@@ -138,47 +135,21 @@ fn save_export_path(file_name: &str, filter: &str) -> Option<std::path::PathBuf>
     Some(std::path::PathBuf::from(String::from_utf16_lossy(&buffer[..end])))
 }
 
-const ID_SHOW_IN_FOLDER: i32 = 1001;
-const ID_OPEN_FILE: i32 = 1002;
-
 fn show_export_completion(path: &std::path::Path) {
-    let title = to_wide("KeyCounter");
-    let instruction = to_wide("导出完成");
-    let content = to_wide(&format!("已保存到：{}", path.display()));
-    let show_label = to_wide("在文件夹中显示");
-    let open_label = to_wide("打开文件");
-    let buttons = [
-        TASKDIALOG_BUTTON {
-            nButtonID: ID_SHOW_IN_FOLDER,
-            pszButtonText: windows::core::PCWSTR(show_label.as_ptr()),
-        },
-        TASKDIALOG_BUTTON {
-            nButtonID: ID_OPEN_FILE,
-            pszButtonText: windows::core::PCWSTR(open_label.as_ptr()),
-        },
-    ];
-    let mut config = TASKDIALOGCONFIG::default();
-    config.cbSize = std::mem::size_of::<TASKDIALOGCONFIG>() as u32;
-    config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION | TDF_SIZE_TO_CONTENT | TDF_USE_COMMAND_LINKS;
-    config.pszWindowTitle = windows::core::PCWSTR(title.as_ptr());
-    config.pszMainInstruction = windows::core::PCWSTR(instruction.as_ptr());
-    config.pszContent = windows::core::PCWSTR(content.as_ptr());
-    config.pButtons = buttons.as_ptr();
-    config.cButtons = buttons.len() as u32;
-    config.nDefaultButton = ID_SHOW_IN_FOLDER;
-    let mut button = 0i32;
-    let shown = unsafe {
-        TaskDialogIndirect(&config, Some(&mut button), None, None).is_ok()
+    let choice = unsafe {
+        let text = to_wide(&format!(
+            "已导出：{}\n\n是：打开文件\n否：在文件夹中显示\n取消：不打开",
+            path.display()
+        ));
+        let caption = to_wide("KeyCounter");
+        MessageBoxW(
+            None,
+            windows::core::PCWSTR(text.as_ptr()),
+            windows::core::PCWSTR(caption.as_ptr()),
+            MB_YESNOCANCEL | MB_ICONINFORMATION | MB_TOPMOST,
+        )
     };
-    if !shown {
-        message_box_ok(&format!("已导出：{}", path.display()));
-        return;
-    }
-    if button == ID_SHOW_IN_FOLDER {
-        let _ = std::process::Command::new("explorer.exe")
-            .arg(format!("/select,\"{}\"", path.display()))
-            .spawn();
-    } else if button == ID_OPEN_FILE {
+    if choice == IDYES {
         let file = to_wide(&path.display().to_string());
         let operation = to_wide("open");
         unsafe {
@@ -191,6 +162,10 @@ fn show_export_completion(path: &std::path::Path) {
                 SW_SHOWNORMAL,
             );
         }
+    } else if choice == IDNO {
+        let _ = std::process::Command::new("explorer.exe")
+            .arg(format!("/select,\"{}\"", path.display()))
+            .spawn();
     }
 }
 
